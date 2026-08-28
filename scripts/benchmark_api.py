@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from scripts.role_defaults import load_role_defaults
+
 
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = ROOT / "benchmarks" / "results"
@@ -61,8 +63,10 @@ def load_inventory() -> dict[str, Any]:
         capture_output=True,
         text=True,
     )
-    inventory = resolve_inventory_refs(json.loads(process.stdout))
-    required = ("llm_api_key", "llama_bind_address", "llama_port", "llama_model_file")
+    inventory = load_role_defaults(ROOT, ("llm_runtime", "llama_server", "vllm_server"))
+    inventory.update(json.loads(process.stdout))
+    inventory = resolve_inventory_refs(inventory)
+    required = ("llm_api_key", "llm_runtime_bind_address", "llm_runtime_port", "llama_server_model_file")
     missing = [name for name in required if not inventory.get(name)]
     if missing:
         raise BenchmarkError(f"inventory is missing required values: {', '.join(missing)}")
@@ -259,9 +263,9 @@ def render_markdown(result: dict[str, Any], result_path: Path) -> str:
 
 def main() -> int:
     inventory = load_inventory()
-    base_url = f"http://{inventory['llama_bind_address']}:{inventory['llama_port']}"
+    base_url = f"http://{inventory['llm_runtime_bind_address']}:{inventory['llm_runtime_port']}"
     client = LlamaClient(base_url, inventory["llm_api_key"])
-    container = inventory.get("llama_container_name", "llama-server")
+    container = inventory.get("llm_runtime_llama_container_name", "llama-server")
     props, state_before = preflight(client, container)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     tokens = build_token_corpus(client, max(PROMPT_CASES))
@@ -293,7 +297,7 @@ def main() -> int:
             "POST",
             "/v1/chat/completions",
             {
-                "model": inventory["llama_model_file"],
+                "model": inventory["llama_server_model_file"],
                 "messages": [
                     {"role": "system", "content": f"Benchmark run {run_id}, sample {repetition}."},
                     {"role": "user", "content": "Explain in Korean why reproducible benchmarks matter."},
@@ -314,13 +318,13 @@ def main() -> int:
     metadata = {
         "run_id": run_id,
         "git_sha": git_sha(),
-        "model_file": inventory["llama_model_file"],
-        "model_revision": inventory.get("llama_model_revision"),
-        "model_checksum": inventory.get("llama_model_checksum"),
-        "backend": inventory.get("llama_backend"),
-        "context_size": inventory.get("llama_context_size"),
-        "parallel": inventory.get("llama_parallel"),
-        "image": inventory.get("llama_intel_image"),
+        "model_file": inventory["llama_server_model_file"],
+        "model_revision": inventory.get("llama_server_model_revision"),
+        "model_checksum": inventory.get("llama_server_model_checksum"),
+        "backend": inventory.get("llama_server_backend"),
+        "context_size": inventory.get("llama_server_context_size"),
+        "parallel": inventory.get("llama_server_parallel"),
+        "image": inventory.get("llama_server_intel_image"),
         "server_build": props.get("build_info"),
         "model_alias": props.get("model_alias"),
         "model_ftype": props.get("model_ftype"),

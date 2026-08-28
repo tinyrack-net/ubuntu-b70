@@ -1,38 +1,4 @@
 ---
 ansible_private_key: "{{ vault_ssh_private_key }}"
 llm_api_key: "{{ vault_llm_api_key }}"
-llm_engine: vllm
-llama_container_name: llama-server
-vllm_container_name: vllm-server
-
-llama_bind_address: 10.132.247.37
-llama_port: 8080
-llama_context_size: 65536
-llama_context_fallbacks:
-  - 32768
-  - 16384
-llama_parallel: 1
-llama_backend: intel
-
-llama_intel_image: >-
-  ghcr.io/ggml-org/llama.cpp:server-intel@sha256:58b3ad3bcbd805ef4094b1daaed8c9df4db9fc02aded25727883d5ad512cabda
-llama_vulkan_image: >-
-  ghcr.io/ggml-org/llama.cpp:server-vulkan@sha256:71da21f3ca71dba2150c729b98cdf76a827747221af65ac36219d35ab7cb6ab7
-
-llama_model_revision: 4ca720788d1e01f1bff70c033e0d0028fd02e502
-llama_model_file: Qwen3.8-27B-UD-Q4_K_M.gguf
-llama_model_checksum: sha256:322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482
-llama_mmproj_file: mmproj-F16.gguf
-llama_mmproj_checksum: sha256:cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e
-
-vllm_image: >-
-  vllm/vllm-openai-xpu:v0.28.0@sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8
-vllm_model: abihsoro/Qwen3.8-27B-AWQ-INT4
-vllm_model_revision: f2e0cac39907e7b1ed7fdb210363dd33cc18f993
-vllm_tokenizer: Qwen/Qwen3.8-27B
-vllm_tokenizer_revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0
-vllm_quantization: compressed-tensors
-vllm_served_model_name: Qwen3.8-27B
-vllm_context_size: 32768
-vllm_max_num_seqs: 4
-vllm_gpu_memory_utilization: "0.92"
+llm_runtime_bind_address: 10.132.247.37

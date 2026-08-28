@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from scripts.role_defaults import load_role_defaults
+
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "benchmarks" / "results"
 PROMPT_CASES = (128, 512, 2048)
@@ -43,7 +45,9 @@ def inventory() -> dict[str, Any]:
         ["ansible-inventory", "--host", "ubuntu-gpu"], cwd=ROOT,
         check=True, capture_output=True, text=True,
     )
-    return resolve_refs(json.loads(proc.stdout))
+    values = load_role_defaults(ROOT, ("llm_runtime", "llama_server", "vllm_server"))
+    values.update(json.loads(proc.stdout))
+    return resolve_refs(values)
 
 
 class Client:
@@ -190,13 +194,14 @@ def write_comparison(current: dict[str, Any]) -> None:
 def run() -> int:
     inv = inventory()
     key = inv["llm_api_key"]
-    base = f"http://{inv['llama_bind_address']}:{inv['llama_port']}"
+    base = f"http://{inv['llm_runtime_bind_address']}:{inv['llm_runtime_port']}"
     client = Client(base, key)
     models = client.json("GET", "/v1/models")["data"]
     model = models[0]["id"]
-    engine = inv.get("llm_engine", "llama_cpp")
-    container = (inv.get("vllm_container_name", "vllm-server") if engine == "vllm"
-                 else inv.get("llama_container_name", "llama-server"))
+    engine = inv.get("llm_runtime_engine", "vllm")
+    container = (inv.get("llm_runtime_vllm_container_name", "vllm-server")
+                 if engine == "vllm"
+                 else inv.get("llm_runtime_llama_container_name", "llama-server"))
     before = container_state(container)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     corpus = ("benchmark alpha beta gamma delta epsilon zeta eta theta " * 6000)
@@ -264,9 +269,9 @@ def run() -> int:
     if after["restart_count"] != before["restart_count"] or after["oom_killed"]:
         raise BenchmarkError("container restarted or was OOM-killed")
     result = {"metadata": {"run_id": run_id, "engine": engine, "model": model,
-                            "context_size": inv.get("vllm_context_size", inv.get("llama_context_size")),
-                            "image": inv.get("vllm_image", inv.get("llama_intel_image")),
-                            "model_revision": inv.get("vllm_model_revision", inv.get("llama_model_revision")),
+                            "context_size": inv.get("vllm_server_context_size", inv.get("llama_server_context_size")),
+                            "image": inv.get("vllm_server_image", inv.get("llama_server_intel_image")),
+                            "model_revision": inv.get("vllm_server_model_revision", inv.get("llama_server_model_revision")),
                             "container_before": before, "container_after": after},
               "summary": summarize(samples), "concurrency": concurrency_results, "samples": samples}
     serialized = json.dumps(result, indent=2, sort_keys=True)

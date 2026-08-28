@@ -14,6 +14,12 @@ def role_text(role: str) -> str:
 
 
 class RoleSeparationTests(unittest.TestCase):
+    def test_inventory_contains_only_host_overrides(self):
+        inventory = (ROOT / "inventories/group_vars/all/main.yml").read_text()
+        self.assertNotIn("vllm_server_model:", inventory)
+        self.assertNotIn("llama_server_model_file:", inventory)
+        self.assertNotIn("llm_runtime_engine:", inventory)
+
     def test_llama_role_has_no_vllm_configuration(self):
         self.assertNotIn("vllm_", role_text("llama_server").lower())
 
@@ -25,17 +31,17 @@ class RoleSeparationTests(unittest.TestCase):
     def test_playbook_selects_roles_by_engine(self):
         playbook = (ROOT / "playbooks" / "setup.yml").read_text()
         self.assertIn("role: llama_server", playbook)
-        self.assertIn("when: llm_engine == 'llama_cpp'", playbook)
+        self.assertIn("when: llm_runtime_engine == 'llama_cpp'", playbook)
         self.assertIn("role: vllm_server", playbook)
-        self.assertIn("when: llm_engine == 'vllm'", playbook)
+        self.assertIn("when: llm_runtime_engine == 'vllm'", playbook)
         self.assertIn("role: llm_runtime", playbook)
 
     def test_each_compose_uses_its_engine_name(self):
         llama = (ROOT / "roles/llama_server/templates/compose.yml.j2").read_text()
         vllm = (ROOT / "roles/vllm_server/templates/compose.yml.j2").read_text()
-        self.assertIn("container_name: \"{{ llama_container_name }}\"", llama)
+        self.assertIn("container_name: \"{{ llm_runtime_llama_container_name }}\"", llama)
         self.assertIn("vllm-server:", vllm)
-        self.assertIn("container_name: \"{{ vllm_container_name }}\"", vllm)
+        self.assertIn("container_name: \"{{ llm_runtime_vllm_container_name }}\"", vllm)
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 ---
 services:
   llama-server:
-    image: "{{ llama_intel_image if llama_backend == 'intel' else llama_vulkan_image }}"
-    container_name: "{{ llama_container_name }}"
+    image: "{{ llama_server_intel_image if llama_server_backend == 'intel' else llama_server_vulkan_image }}"
+    container_name: "{{ llm_runtime_llama_container_name }}"
     restart: unless-stopped
     ports:
-      - "{{ llama_bind_address }}:{{ llama_port }}:8080"
+      - "{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}:8080"
     devices:
       - "{{ intel_gpu_card_device }}:{{ intel_gpu_card_device }}"
       - "{{ intel_gpu_render_device }}:{{ intel_gpu_render_device }}"
@@ -17,9 +17,9 @@ services:
       - "{{ llama_server_model_dir }}:/models:ro"
     command:
       - --model
-      - "/models/{{ llama_model_file }}"
+      - "/models/{{ llama_server_model_file }}"
       - --mmproj
-      - "/models/{{ llama_mmproj_file }}"
+      - "/models/{{ llama_server_mmproj_file }}"
       - --host
       - "0.0.0.0"
       - --port
@@ -27,9 +27,9 @@ services:
       - --api-key-file
       - /run/secrets/llm_api_key
       - --ctx-size
-      - "{{ llama_context_size }}"
+      - "{{ llama_server_context_size }}"
       - --parallel
-      - "{{ llama_parallel }}"
+      - "{{ llama_server_parallel }}"
       - --n-gpu-layers
       - "99"
       - --flash-attn

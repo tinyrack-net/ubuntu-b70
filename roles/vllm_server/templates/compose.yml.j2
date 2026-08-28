@@ -1,11 +1,11 @@
 ---
 services:
   vllm-server:
-    image: "{{ vllm_image }}"
-    container_name: "{{ vllm_container_name }}"
+    image: "{{ vllm_server_image }}"
+    container_name: "{{ llm_runtime_vllm_container_name }}"
     restart: unless-stopped
     ports:
-      - "{{ llama_bind_address }}:{{ llama_port }}:8080"
+      - "{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}:8080"
     devices:
       - "/dev/dri:/dev/dri"
     ipc: host
@@ -22,15 +22,15 @@ services:
     command:
       - >-
         export VLLM_API_KEY="$$(cat /run/secrets/llm_api_key)";
-        exec vllm serve "{{ vllm_model }}"
-        --revision "{{ vllm_model_revision }}"
-        --tokenizer "{{ vllm_tokenizer }}"
-        --tokenizer-revision "{{ vllm_tokenizer_revision }}"
-        --served-model-name "{{ vllm_served_model_name }}"
+        exec vllm serve "{{ vllm_server_model }}"
+        --revision "{{ vllm_server_model_revision }}"
+        --tokenizer "{{ vllm_server_tokenizer }}"
+        --tokenizer-revision "{{ vllm_server_tokenizer_revision }}"
+        --served-model-name "{{ vllm_server_served_model_name }}"
         --language-model-only
         --host 0.0.0.0 --port 8080
-        --dtype float16 --quantization "{{ vllm_quantization }}"
-        --max-model-len "{{ vllm_context_size }}"
-        --max-num-seqs "{{ vllm_max_num_seqs }}"
-        --gpu-memory-utilization "{{ vllm_gpu_memory_utilization }}"
+        --dtype float16 --quantization "{{ vllm_server_quantization }}"
+        --max-model-len "{{ vllm_server_context_size }}"
+        --max-num-seqs "{{ vllm_server_max_num_seqs }}"
+        --gpu-memory-utilization "{{ vllm_server_gpu_memory_utilization }}"
         --generation-config vllm

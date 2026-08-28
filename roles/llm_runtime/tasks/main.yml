@@ -2,11 +2,14 @@
 - name: Assert supported LLM engine
   ansible.builtin.assert:
     that:
-      - llm_engine in ['llama_cpp', 'vllm']
-    fail_msg: "Unsupported llm_engine: {{ llm_engine }}"
+      - llm_runtime_engine in ['llama_cpp', 'vllm']
+    fail_msg: "Unsupported llm_runtime_engine: {{ llm_runtime_engine }}"
 
 - name: Stop the inactive LLM engine container
   community.docker.docker_container:
-    name: "{{ vllm_container_name if llm_engine == 'llama_cpp' else llama_container_name }}"
+    name: >-
+      {{ llm_runtime_vllm_container_name
+         if llm_runtime_engine == 'llama_cpp'
+         else llm_runtime_llama_container_name }}
     state: absent
   become: true

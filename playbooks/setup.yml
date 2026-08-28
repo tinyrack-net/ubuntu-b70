@@ -22,7 +22,7 @@
       tags: llm_runtime
     - role: llama_server
       tags: llama_server
-      when: llm_engine == 'llama_cpp'
+      when: llm_runtime_engine == 'llama_cpp'
     - role: vllm_server
       tags: vllm_server
-      when: llm_engine == 'vllm'
+      when: llm_runtime_engine == 'vllm'

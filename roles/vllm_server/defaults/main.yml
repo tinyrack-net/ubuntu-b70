@@ -4,3 +4,15 @@ vllm_server_api_key_path: /etc/vllm-server/api-key
 vllm_server_data_dir: /var/lib/vllm-server
 vllm_server_hf_cache_dir: "{{ vllm_server_data_dir }}/huggingface"
 vllm_server_legacy_hf_cache_dir: /var/lib/llama-server/huggingface
+
+vllm_server_image: >-
+  vllm/vllm-openai-xpu:v0.28.0@sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8
+vllm_server_model: abihsoro/Qwen3.8-27B-AWQ-INT4
+vllm_server_model_revision: f2e0cac39907e7b1ed7fdb210363dd33cc18f993
+vllm_server_tokenizer: Qwen/Qwen3.8-27B
+vllm_server_tokenizer_revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0
+vllm_server_quantization: compressed-tensors
+vllm_server_served_model_name: Qwen3.8-27B
+vllm_server_context_size: 32768
+vllm_server_max_num_seqs: 4
+vllm_server_gpu_memory_utilization: "0.92"

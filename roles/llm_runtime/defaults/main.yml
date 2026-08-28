@@ -1,0 +1,6 @@
+---
+llm_runtime_engine: vllm
+llm_runtime_bind_address: 127.0.0.1
+llm_runtime_port: 8080
+llm_runtime_llama_container_name: llama-server
+llm_runtime_vllm_container_name: vllm-server

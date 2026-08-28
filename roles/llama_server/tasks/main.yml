@@ -15,9 +15,9 @@
 - name: Download pinned language model
   ansible.builtin.get_url:
     url: >-
-      https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/{{ llama_model_revision }}/{{ llama_model_file }}?download=true
-    dest: "{{ llama_server_model_dir }}/{{ llama_model_file }}"
-    checksum: "{{ llama_model_checksum }}"
+      https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/{{ llama_server_model_revision }}/{{ llama_server_model_file }}?download=true
+    dest: "{{ llama_server_model_dir }}/{{ llama_server_model_file }}"
+    checksum: "{{ llama_server_model_checksum }}"
     mode: "0644"
     timeout: 3600
   become: true
@@ -25,9 +25,9 @@
 - name: Download pinned multimodal projector
   ansible.builtin.get_url:
     url: >-
-      https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/{{ llama_model_revision }}/{{ llama_mmproj_file }}?download=true
-    dest: "{{ llama_server_model_dir }}/{{ llama_mmproj_file }}"
-    checksum: "{{ llama_mmproj_checksum }}"
+      https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/{{ llama_server_model_revision }}/{{ llama_server_mmproj_file }}?download=true
+    dest: "{{ llama_server_model_dir }}/{{ llama_server_mmproj_file }}"
+    checksum: "{{ llama_server_mmproj_checksum }}"
     mode: "0644"
     timeout: 3600
   become: true
@@ -67,7 +67,7 @@
 
 - name: Wait for llama-server health endpoint
   ansible.builtin.uri:
-    url: "http://{{ llama_bind_address }}:{{ llama_port }}/health"
+    url: "http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}/health"
     status_code:
       - 200
       - 503
@@ -82,7 +82,7 @@
 
 - name: Verify authenticated OpenAI model endpoint
   ansible.builtin.uri:
-    url: "http://{{ llama_bind_address }}:{{ llama_port }}/v1/models"
+    url: "http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}/v1/models"
     headers:
       Authorization: "Bearer {{ llm_api_key }}"
     status_code: 200
