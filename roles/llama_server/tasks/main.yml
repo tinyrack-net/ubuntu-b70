@@ -34,7 +34,7 @@
 
 - name: Install llama-server API key file
   ansible.builtin.copy:
-    content: "{{ llama_api_key }}\n"
+    content: "{{ llm_api_key }}\n"
     dest: "{{ llama_server_api_key_path }}"
     owner: root
     group: root
@@ -73,7 +73,7 @@
       - 503
     return_content: true
     headers:
-      Authorization: "Bearer {{ llama_api_key }}"
+      Authorization: "Bearer {{ llm_api_key }}"
   register: llama_server_health
   until: llama_server_health.status == 200
   retries: 180
@@ -84,6 +84,6 @@
   ansible.builtin.uri:
     url: "http://{{ llama_bind_address }}:{{ llama_port }}/v1/models"
     headers:
-      Authorization: "Bearer {{ llama_api_key }}"
+      Authorization: "Bearer {{ llm_api_key }}"
     status_code: 200
   no_log: true

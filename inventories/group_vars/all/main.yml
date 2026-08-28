@@ -1,6 +1,6 @@
 ---
 ansible_private_key: "{{ vault_ssh_private_key }}"
-llama_api_key: "{{ vault_llama_api_key }}"
+llm_api_key: "{{ vault_llm_api_key }}"
 llm_engine: vllm
 llm_container_name: llama-server
 

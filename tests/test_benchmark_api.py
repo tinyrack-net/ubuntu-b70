@@ -31,8 +31,8 @@ def sample(case="pp128", kind="prompt", repetition=1):
 
 class BenchmarkApiTests(unittest.TestCase):
     def test_inventory_reference_is_resolved(self):
-        inventory = {"llama_api_key": "{{ vault_llama_api_key }}", "vault_llama_api_key": "secret"}
-        self.assertEqual(resolve_inventory_refs(inventory)["llama_api_key"], "secret")
+        inventory = {"llm_api_key": "{{ vault_llm_api_key }}", "vault_llm_api_key": "secret"}
+        self.assertEqual(resolve_inventory_refs(inventory)["llm_api_key"], "secret")
 
     def test_summary_contains_statistics(self):
         summary = summarize_results([sample(repetition=1), sample(repetition=2)])

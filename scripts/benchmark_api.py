@@ -62,7 +62,7 @@ def load_inventory() -> dict[str, Any]:
         text=True,
     )
     inventory = resolve_inventory_refs(json.loads(process.stdout))
-    required = ("llama_api_key", "llama_bind_address", "llama_port", "llama_model_file")
+    required = ("llm_api_key", "llama_bind_address", "llama_port", "llama_model_file")
     missing = [name for name in required if not inventory.get(name)]
     if missing:
         raise BenchmarkError(f"inventory is missing required values: {', '.join(missing)}")
@@ -260,7 +260,7 @@ def render_markdown(result: dict[str, Any], result_path: Path) -> str:
 def main() -> int:
     inventory = load_inventory()
     base_url = f"http://{inventory['llama_bind_address']}:{inventory['llama_port']}"
-    client = LlamaClient(base_url, inventory["llama_api_key"])
+    client = LlamaClient(base_url, inventory["llm_api_key"])
     props, state_before = preflight(client)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     tokens = build_token_corpus(client, max(PROMPT_CASES))
@@ -329,7 +329,7 @@ def main() -> int:
     }
     result = {"metadata": metadata, "summary": summarize_results(samples), "samples": samples}
     serialized = json.dumps(result, indent=2, sort_keys=True)
-    if inventory["llama_api_key"] in serialized:
+    if inventory["llm_api_key"] in serialized:
         raise BenchmarkError("refusing to persist a result containing the API key")
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)

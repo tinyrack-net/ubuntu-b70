@@ -25,4 +25,4 @@
           - "'ansible_ssh_private_key_file' not in inventory"
           - "'ansible_password:' not in inventory"
           - "'vault_ubuntu_gpu_become_password' in inventory"
-          - "'vault_llama_api_key' in common_vars"
+          - "'vault_llm_api_key' in common_vars"

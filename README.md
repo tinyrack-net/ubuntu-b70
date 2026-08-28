@@ -28,7 +28,7 @@ make apply
 ```
 
 API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
-`vault_llama_api_key`이며, 평문 확인이 필요하면 `ansible-vault view`를 사용한다.
+`vault_llm_api_key`이며, 평문 확인이 필요하면 `ansible-vault view`를 사용한다.
 
 ## 운영 설정
 

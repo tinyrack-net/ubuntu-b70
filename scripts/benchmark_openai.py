@@ -189,7 +189,7 @@ def write_comparison(current: dict[str, Any]) -> None:
 
 def run() -> int:
     inv = inventory()
-    key = inv["llama_api_key"]
+    key = inv["llm_api_key"]
     base = f"http://{inv['llama_bind_address']}:{inv['llama_port']}"
     client = Client(base, key)
     models = client.json("GET", "/v1/models")["data"]

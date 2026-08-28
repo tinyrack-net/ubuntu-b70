@@ -13,7 +13,7 @@ services:
     environment:
       ONEAPI_DEVICE_SELECTOR: level_zero:0
     volumes:
-      - "{{ vllm_server_api_key_path }}:/run/secrets/llama_api_key:ro"
+      - "{{ vllm_server_api_key_path }}:/run/secrets/llm_api_key:ro"
       - "{{ vllm_server_hf_cache_dir }}:/root/.cache/huggingface"
       - "/dev/dri/by-path:/dev/dri/by-path:ro"
     entrypoint:
@@ -21,7 +21,7 @@ services:
       - -lc
     command:
       - >-
-        export VLLM_API_KEY="$$(cat /run/secrets/llama_api_key)";
+        export VLLM_API_KEY="$$(cat /run/secrets/llm_api_key)";
         exec vllm serve "{{ vllm_model }}"
         --revision "{{ vllm_model_revision }}"
         --tokenizer "{{ vllm_tokenizer }}"
