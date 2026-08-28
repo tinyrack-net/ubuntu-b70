@@ -32,7 +32,7 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 
 ## 운영 설정
 
-- 기본 엔진: vLLM XPU, context 32768, max sequences 4
+- 기본 엔진: vLLM XPU, context 32768, max sequences 8, XPU Graph 활성화
 - vLLM Compose service와 컨테이너 이름은 `vllm-server`, llama.cpp는
   `llama-server`를 사용한다.
 - `vllm_server`와 `llama_server` role은 엔진별 task와 Compose 구성을 독립적으로

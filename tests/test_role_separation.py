@@ -51,6 +51,14 @@ class RoleSeparationTests(unittest.TestCase):
         self.assertIn("--enable-auto-tool-choice", compose)
         self.assertIn('--tool-call-parser "{{ vllm_server_tool_call_parser }}"', compose)
 
+    def test_vllm_uses_benchmarked_xpu_throughput_defaults(self):
+        defaults = (ROOT / "roles/vllm_server/defaults/main.yml").read_text()
+        compose = (ROOT / "roles/vllm_server/templates/compose.yml.j2").read_text()
+        self.assertIn("vllm_server_max_num_seqs: 8", defaults)
+        self.assertIn("vllm_server_enable_xpu_graph: true", defaults)
+        self.assertIn("VLLM_XPU_ENABLE_XPU_GRAPH:", compose)
+        self.assertIn("vllm_server_enable_xpu_graph | bool", compose)
+
 
 if __name__ == "__main__":
     unittest.main()

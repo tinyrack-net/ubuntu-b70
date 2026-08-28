@@ -12,6 +12,7 @@ services:
     privileged: true
     environment:
       ONEAPI_DEVICE_SELECTOR: level_zero:0
+      VLLM_XPU_ENABLE_XPU_GRAPH: "{{ 1 if vllm_server_enable_xpu_graph | bool else 0 }}"
     volumes:
       - "{{ vllm_server_api_key_path }}:/run/secrets/llm_api_key:ro"
       - "{{ vllm_server_hf_cache_dir }}:/root/.cache/huggingface"

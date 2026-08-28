@@ -14,7 +14,8 @@ vllm_server_tokenizer_revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0
 vllm_server_quantization: compressed-tensors
 vllm_server_served_model_name: Qwen3.8-27B
 vllm_server_context_size: 32768
-vllm_server_max_num_seqs: 4
+vllm_server_max_num_seqs: 8
 vllm_server_gpu_memory_utilization: "0.92"
+vllm_server_enable_xpu_graph: true
 vllm_server_enable_auto_tool_choice: true
 vllm_server_tool_call_parser: hermes
