@@ -1,17 +1,18 @@
 ---
 services:
-  vllm-server:
+{% for instance in vllm_server_instances %}
+  {{ instance.name }}:
     image: "{{ vllm_server_image }}"
-    container_name: "{{ llm_runtime_vllm_container_name }}"
+    container_name: "{{ instance.name }}"
     restart: unless-stopped
     ports:
-      - "{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}:8080"
+      - "{{ llm_runtime_bind_address }}:{{ instance.port }}:8080"
     devices:
       - "/dev/dri:/dev/dri"
     ipc: host
     privileged: true
     environment:
-      ONEAPI_DEVICE_SELECTOR: level_zero:0
+      ONEAPI_DEVICE_SELECTOR: "{{ instance.device_selector }}"
       VLLM_XPU_ENABLE_XPU_GRAPH: "{{ 1 if vllm_server_enable_xpu_graph | bool else 0 }}"
     volumes:
       - "{{ vllm_server_api_key_path }}:/run/secrets/llm_api_key:ro"
@@ -34,8 +35,13 @@ services:
         --max-model-len "{{ vllm_server_context_size }}"
         --max-num-seqs "{{ vllm_server_max_num_seqs }}"
         --gpu-memory-utilization "{{ vllm_server_gpu_memory_utilization }}"
+{% if instance.tensor_parallel_size | int > 1 %}
+        --distributed-executor-backend mp
+        --tensor-parallel-size "{{ instance.tensor_parallel_size }}"
+{% endif %}
 {% if vllm_server_enable_auto_tool_choice | bool %}
         --enable-auto-tool-choice
         --tool-call-parser "{{ vllm_server_tool_call_parser }}"
 {% endif %}
         --generation-config vllm
+{% endfor %}

@@ -4,6 +4,7 @@ ANSIBLE_PLAYBOOK ?= ansible-playbook
 ANSIBLE_GALAXY ?= ansible-galaxy
 PYTHON ?= python3
 ANSIBLE_ARGS ?=
+BENCHMARK_ARGS ?=
 
 install-tools:
 	pipx install ansible-lint || pipx upgrade ansible-lint
@@ -38,4 +39,4 @@ apply:
 	$(ANSIBLE_PLAYBOOK) playbooks/setup.yml $(ANSIBLE_ARGS)
 
 benchmark-api:
-	$(PYTHON) scripts/benchmark_openai.py
+	$(PYTHON) -m scripts.benchmark_openai $(BENCHMARK_ARGS)

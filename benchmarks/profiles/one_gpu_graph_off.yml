@@ -1,0 +1,8 @@
+---
+vllm_benchmark_profile: one_gpu_graph_off
+vllm_server_enable_xpu_graph: false
+vllm_server_instances:
+  - name: vllm-server
+    port: 8080
+    device_selector: level_zero:0
+    tensor_parallel_size: 1

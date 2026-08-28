@@ -1,0 +1,7 @@
+---
+vllm_benchmark_profile: one_gpu
+vllm_server_instances:
+  - name: vllm-server
+    port: 8080
+    device_selector: level_zero:0
+    tensor_parallel_size: 1

@@ -1,0 +1,11 @@
+---
+vllm_benchmark_profile: replica_2
+vllm_server_instances:
+  - name: vllm-server
+    port: 8080
+    device_selector: level_zero:0
+    tensor_parallel_size: 1
+  - name: vllm-server-1
+    port: 8081
+    device_selector: level_zero:1
+    tensor_parallel_size: 1

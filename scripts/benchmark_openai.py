@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import argparse
 import math
 import re
 import statistics
@@ -24,6 +25,7 @@ RESULTS = ROOT / "benchmarks" / "results"
 PROMPT_CASES = (128, 512, 2048)
 GENERATION_CASES = (128, 256)
 REPETITIONS = 5
+CONCURRENCY_REPETITIONS = 3
 
 
 class BenchmarkError(RuntimeError):
@@ -40,9 +42,13 @@ def resolve_refs(values: dict[str, Any]) -> dict[str, Any]:
     return resolved
 
 
-def inventory() -> dict[str, Any]:
+def inventory(profile: str = "inventory") -> dict[str, Any]:
+    command = ["ansible-inventory", "--host", "ubuntu-gpu"]
+    profile_path = ROOT / "benchmarks" / "profiles" / f"{profile}.yml"
+    if profile_path.exists():
+        command.extend(["-e", f"@{profile_path}"])
     proc = subprocess.run(
-        ["ansible-inventory", "--host", "ubuntu-gpu"], cwd=ROOT,
+        command, cwd=ROOT,
         check=True, capture_output=True, text=True,
     )
     values = load_role_defaults(ROOT, ("llm_runtime", "llama_server", "vllm_server"))
@@ -191,18 +197,70 @@ def write_comparison(current: dict[str, Any]) -> None:
     (ROOT / "benchmarks" / "latest.md").write_text(render_comparison(ordered))
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profile", default="inventory")
+    parser.add_argument(
+        "--target", action="append", default=[], metavar="PORT:CONTAINER",
+        help="Benchmark target; repeat for replica round-robin",
+    )
+    return parser.parse_args()
+
+
+def benchmark_environment(profile: str, inv: dict[str, Any]) -> dict[str, Any]:
+    values = dict(inv)
+    instances = values.get("vllm_server_instances", [])
+    tensor_parallel = [int(item.get("tensor_parallel_size", 1)) for item in instances]
+    topology = "tensor_parallel" if any(size > 1 for size in tensor_parallel) else (
+        "replica" if len(instances) > 1 else "single_gpu"
+    )
+    return {
+        "topology": topology,
+        "gpu_count": sum(tensor_parallel),
+        "xpu_graph_enabled": bool(values.get("vllm_server_enable_xpu_graph", True)),
+        "max_num_seqs": int(values.get("vllm_server_max_num_seqs", 1)),
+        "gpu_memory_utilization": float(values.get("vllm_server_gpu_memory_utilization", 0)),
+        "instances": [
+            {
+                "name": item["name"],
+                "port": int(item["port"]),
+                "device_selector": item["device_selector"],
+                "tensor_parallel_size": int(item.get("tensor_parallel_size", 1)),
+            }
+            for item in instances
+        ],
+        "benchmark": {
+            "prompt_token_cases": list(PROMPT_CASES),
+            "generation_token_cases": list(GENERATION_CASES),
+            "single_request_repetitions": REPETITIONS,
+            "concurrency_levels": [1, 2, 4, 8, 16],
+            "concurrency_repetitions": CONCURRENCY_REPETITIONS,
+            "concurrency_prompt_tokens": 512,
+            "concurrency_output_tokens": 256,
+        },
+    }
+
+
 def run() -> int:
-    inv = inventory()
+    args = parse_args()
+    inv = inventory(args.profile)
     key = inv["llm_api_key"]
-    base = f"http://{inv['llm_runtime_bind_address']}:{inv['llm_runtime_port']}"
-    client = Client(base, key)
+    target_specs = args.target or [
+        f"{inv['llm_runtime_port']}:{inv.get('llm_runtime_vllm_container_name', 'vllm-server')}"
+    ]
+    targets = []
+    for spec in target_specs:
+        port, container_name = spec.split(":", 1)
+        targets.append({
+            "port": int(port), "container": container_name,
+            "client": Client(f"http://{inv['llm_runtime_bind_address']}:{port}", key),
+        })
+    client = targets[0]["client"]
     models = client.json("GET", "/v1/models")["data"]
     model = models[0]["id"]
     engine = inv.get("llm_runtime_engine", "vllm")
-    container = (inv.get("llm_runtime_vllm_container_name", "vllm-server")
-                 if engine == "vllm"
-                 else inv.get("llm_runtime_llama_container_name", "llama-server"))
-    before = container_state(container)
+    containers = [target["container"] for target in targets]
+    before = {container: container_state(container) for container in containers}
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     corpus = ("benchmark alpha beta gamma delta epsilon zeta eta theta " * 6000)
     try:
@@ -224,7 +282,8 @@ def run() -> int:
                    "temperature": 0, "seed": 42 + nonce, "ignore_eos": True,
                    "_prompt_n": prompt_n}
         wire = {key: value for key, value in payload.items() if not key.startswith("_")}
-        measured = client.stream("/v1/completions", {**wire, "_prompt_n": prompt_n})
+        selected = targets[nonce % len(targets)]["client"]
+        measured = selected.stream("/v1/completions", {**wire, "_prompt_n": prompt_n})
         return measured
 
     print(f"Warming {engine}...", flush=True)
@@ -246,29 +305,48 @@ def run() -> int:
             nonce += 1
 
     concurrency_results = []
-    for concurrency in (1, 2, 4):
+    for concurrency in (1, 2, 4, 8, 16):
         count = concurrency * 5
-        print(f"concurrency {concurrency}: {count} requests", flush=True)
-        started = time.perf_counter()
         rows = []
-        with ThreadPoolExecutor(max_workers=concurrency) as pool:
-            futures = [pool.submit(request, 512, 256, nonce + i) for i in range(count)]
-            for future in as_completed(futures):
-                rows.append(future.result())
-        duration = time.perf_counter() - started
-        nonce += count
+        output_rates = []
+        request_rates = []
+        durations = []
+        for repetition in range(1, CONCURRENCY_REPETITIONS + 1):
+            print(f"concurrency {concurrency}: round {repetition}/{CONCURRENCY_REPETITIONS}, {count} requests", flush=True)
+            started = time.perf_counter()
+            round_rows = []
+            with ThreadPoolExecutor(max_workers=concurrency) as pool:
+                futures = [pool.submit(request, 512, 256, nonce + i) for i in range(count)]
+                for future in as_completed(futures):
+                    round_rows.append(future.result())
+            duration = time.perf_counter() - started
+            nonce += count
+            rows.extend(round_rows)
+            durations.append(duration)
+            output_rates.append(sum(row["output_tokens"] for row in round_rows) / duration)
+            request_rates.append(count / duration)
         concurrency_results.append({
-            "concurrency": concurrency, "requests": count, "duration_s": duration,
-            "request_tps": count / duration,
-            "output_tps": sum(row["output_tokens"] for row in rows) / duration,
+            "concurrency": concurrency, "requests": count,
+            "repetitions": CONCURRENCY_REPETITIONS,
+            "duration_s": stats(durations),
+            "request_tps": statistics.median(request_rates),
+            "request_tps_stats": stats(request_rates),
+            "output_tps": statistics.median(output_rates),
+            "output_tps_stats": stats(output_rates),
             "ttft_ms": stats([row["ttft_ms"] for row in rows]),
             "tpot_ms": stats([row["tpot_ms"] for row in rows]),
         })
 
-    after = container_state(container)
-    if after["restart_count"] != before["restart_count"] or after["oom_killed"]:
-        raise BenchmarkError("container restarted or was OOM-killed")
-    result = {"metadata": {"run_id": run_id, "engine": engine, "model": model,
+    after = {container: container_state(container) for container in containers}
+    for container in containers:
+        if (after[container]["restart_count"] != before[container]["restart_count"]
+                or after[container]["oom_killed"]):
+            raise BenchmarkError(f"{container} restarted or was OOM-killed")
+    result = {"metadata": {"run_id": run_id, "engine": engine, "profile": args.profile,
+                            "environment": benchmark_environment(args.profile, inv),
+                            "targets": [{"port": target["port"], "container": target["container"]}
+                                        for target in targets],
+                            "model": model,
                             "context_size": inv.get("vllm_server_context_size", inv.get("llama_server_context_size")),
                             "image": inv.get("vllm_server_image", inv.get("llama_server_intel_image")),
                             "model_revision": inv.get("vllm_server_model_revision", inv.get("llama_server_model_revision")),

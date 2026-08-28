@@ -68,7 +68,6 @@
     group: root
     mode: "0644"
   become: true
-  notify: Restart vllm-server
 
 - name: Start vLLM Compose project
   community.docker.docker_compose_v2:
@@ -85,7 +84,7 @@
 
 - name: Wait for vLLM health endpoint
   ansible.builtin.uri:
-    url: "http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}/health"
+    url: "http://{{ llm_runtime_bind_address }}:{{ item.port }}/health"
     status_code:
       - 200
       - 503
@@ -97,11 +96,13 @@
   retries: 180
   delay: 10
   no_log: true
+  loop: "{{ vllm_server_instances }}"
 
 - name: Verify authenticated vLLM model endpoint
   ansible.builtin.uri:
-    url: "http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}/v1/models"
+    url: "http://{{ llm_runtime_bind_address }}:{{ item.port }}/v1/models"
     headers:
       Authorization: "Bearer {{ llm_api_key }}"
     status_code: 200
   no_log: true
+  loop: "{{ vllm_server_instances }}"

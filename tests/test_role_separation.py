@@ -40,8 +40,8 @@ class RoleSeparationTests(unittest.TestCase):
         llama = (ROOT / "roles/llama_server/templates/compose.yml.j2").read_text()
         vllm = (ROOT / "roles/vllm_server/templates/compose.yml.j2").read_text()
         self.assertIn("container_name: \"{{ llm_runtime_llama_container_name }}\"", llama)
-        self.assertIn("vllm-server:", vllm)
-        self.assertIn("container_name: \"{{ llm_runtime_vllm_container_name }}\"", vllm)
+        self.assertIn("{{ instance.name }}:", vllm)
+        self.assertIn('container_name: "{{ instance.name }}"', vllm)
 
     def test_vllm_auto_tool_choice_uses_role_defaults(self):
         defaults = (ROOT / "roles/vllm_server/defaults/main.yml").read_text()
@@ -58,6 +58,15 @@ class RoleSeparationTests(unittest.TestCase):
         self.assertIn("vllm_server_enable_xpu_graph: true", defaults)
         self.assertIn("VLLM_XPU_ENABLE_XPU_GRAPH:", compose)
         self.assertIn("vllm_server_enable_xpu_graph | bool", compose)
+
+    def test_vllm_supports_multiple_xpu_instances_and_tensor_parallel(self):
+        defaults = (ROOT / "roles/vllm_server/defaults/main.yml").read_text()
+        compose = (ROOT / "roles/vllm_server/templates/compose.yml.j2").read_text()
+        tasks = (ROOT / "roles/vllm_server/tasks/main.yml").read_text()
+        self.assertIn("vllm_server_instances:", defaults)
+        self.assertIn("for instance in vllm_server_instances", compose)
+        self.assertIn("--tensor-parallel-size", compose)
+        self.assertIn('loop: "{{ vllm_server_instances }}"', tasks)
 
 
 if __name__ == "__main__":

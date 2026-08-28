@@ -105,7 +105,38 @@
     "image": "vllm/vllm-openai-xpu:v0.28.0@sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8",
     "model": "Qwen3.8-27B",
     "model_revision": "f2e0cac39907e7b1ed7fdb210363dd33cc18f993",
-    "run_id": "20260828T061504Z"
+    "run_id": "20260828T061504Z",
+    "environment": {
+      "annotation_status": "legacy_partial",
+      "annotation_note": "Exact runtime topology flags were not captured by the benchmark version used for this run; null means unknown.",
+      "topology": "single_gpu",
+      "gpu_count": 1,
+      "xpu_graph_enabled": null,
+      "max_num_seqs": null,
+      "gpu_memory_utilization": null,
+      "instances": [],
+      "benchmark": {
+        "prompt_token_cases": [
+          128,
+          512,
+          2048
+        ],
+        "generation_token_cases": [
+          128,
+          256
+        ],
+        "single_request_repetitions": 5,
+        "concurrency_levels": [
+          1,
+          2,
+          4,
+          8
+        ],
+        "concurrency_repetitions": null,
+        "concurrency_prompt_tokens": 512,
+        "concurrency_output_tokens": 256
+      }
+    }
   },
   "samples": [
     {
