@@ -1,0 +1,4 @@
+---
+llama_server_install_dir: /opt/llama-server
+llama_server_model_dir: /var/lib/llama-server/models
+llama_server_api_key_path: /etc/llama-server/api-keys

@@ -1,0 +1,77 @@
+---
+- name: Create llama-server directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ llama_server_install_dir }}", mode: "0755"}
+    - {path: "{{ llama_server_model_dir }}", mode: "0755"}
+    - {path: "{{ llama_server_api_key_path | dirname }}", mode: "0700"}
+  become: true
+
+- name: Download pinned language model
+  ansible.builtin.get_url:
+    url: >-
+      https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/{{ llama_model_revision }}/{{ llama_model_file }}?download=true
+    dest: "{{ llama_server_model_dir }}/{{ llama_model_file }}"
+    checksum: "{{ llama_model_checksum }}"
+    mode: "0644"
+    timeout: 3600
+  become: true
+
+- name: Download pinned multimodal projector
+  ansible.builtin.get_url:
+    url: >-
+      https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/{{ llama_model_revision }}/{{ llama_mmproj_file }}?download=true
+    dest: "{{ llama_server_model_dir }}/{{ llama_mmproj_file }}"
+    checksum: "{{ llama_mmproj_checksum }}"
+    mode: "0644"
+    timeout: 3600
+  become: true
+
+- name: Install llama-server API key file
+  ansible.builtin.copy:
+    content: "{{ llama_api_key }}\n"
+    dest: "{{ llama_server_api_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+  no_log: true
+  notify: Restart llama-server
+
+- name: Render llama-server Compose project
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ llama_server_install_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart llama-server
+
+- name: Start llama-server Compose project
+  community.docker.docker_compose_v2:
+    project_src: "{{ llama_server_install_dir }}"
+    pull: missing
+    state: present
+    wait: false
+  become: true
+
+- name: Apply pending llama-server restart
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for llama-server health endpoint
+  ansible.builtin.uri:
+    url: "http://{{ llama_bind_address }}:{{ llama_port }}/health"
+    status_code:
+      - 200
+      - 503
+    return_content: true
+  register: llama_server_health
+  until: llama_server_health.status == 200
+  retries: 180
+  delay: 10

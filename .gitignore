@@ -1,0 +1,6 @@
+.vault_pass
+.ansible/
+collections/
+roles_galaxy/
+*.retry
+__pycache__/

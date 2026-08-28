@@ -1,0 +1,44 @@
+---
+services:
+  llama-server:
+    image: "{{ llama_intel_image if llama_backend == 'intel' else llama_vulkan_image }}"
+    container_name: llama-server
+    restart: unless-stopped
+    ports:
+      - "{{ llama_bind_address }}:{{ llama_port }}:8080"
+    devices:
+      - "{{ intel_gpu_card_device }}:{{ intel_gpu_card_device }}"
+      - "{{ intel_gpu_render_device }}:{{ intel_gpu_render_device }}"
+    environment:
+      ONEAPI_DEVICE_SELECTOR: level_zero:0
+    volumes:
+      - "{{ llama_server_model_dir }}:/models:ro"
+      - "{{ llama_server_api_key_path }}:/run/secrets/llama_api_key:ro"
+    command:
+      - --model
+      - "/models/{{ llama_model_file }}"
+      - --mmproj
+      - "/models/{{ llama_mmproj_file }}"
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8080"
+      - --api-key-file
+      - /run/secrets/llama_api_key
+      - --ctx-size
+      - "{{ llama_context_size }}"
+      - --parallel
+      - "{{ llama_parallel }}"
+      - --n-gpu-layers
+      - "99"
+      - --flash-attn
+      - "on"
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      - --no-webui
+      - --load-mode
+      - none
+      - --image-min-tokens
+      - "1024"

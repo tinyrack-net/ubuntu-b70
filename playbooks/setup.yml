@@ -1,0 +1,23 @@
+---
+- name: Provision Intel B70 LLM server
+  hosts: ubuntu
+  gather_facts: true
+  pre_tasks:
+    - name: Assert supported target
+      ansible.builtin.assert:
+        that:
+          - ansible_facts["distribution"] == "Ubuntu"
+          - ansible_facts["distribution_version"] is version("26.04", ">=")
+          - ansible_facts["architecture"] == "x86_64"
+        fail_msg: This project requires Ubuntu 26.04+ on x86_64.
+      tags: always
+  roles:
+    - role: base
+      tags: base
+    - role: docker
+      tags: docker
+    - role: intel_gpu
+      tags: intel_gpu
+    - role: llama_server
+      tags: llama_server
+

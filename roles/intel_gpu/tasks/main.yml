@@ -1,0 +1,43 @@
+---
+- name: Install Intel GPU compute runtimes and diagnostics
+  ansible.builtin.apt:
+    name:
+      - clinfo
+      - intel-gpu-tools
+      - intel-opencl-icd
+      - libze-intel-gpu1
+      - mesa-vulkan-drivers
+      - vulkan-tools
+    state: present
+  become: true
+
+- name: Add managed user to GPU groups
+  ansible.builtin.user:
+    name: "{{ ansible_facts['user_id'] }}"
+    groups:
+      - render
+      - video
+    append: true
+  become: true
+
+- name: Read display controllers
+  ansible.builtin.command: lspci -nnk
+  register: intel_gpu_lspci
+  changed_when: false
+
+- name: Check Intel GPU device nodes
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ intel_gpu_card_device }}"
+    - "{{ intel_gpu_render_device }}"
+  register: intel_gpu_nodes
+
+- name: Assert B70 and xe driver are available
+  ansible.builtin.assert:
+    that:
+      - intel_gpu_pci_id in (intel_gpu_lspci.stdout | lower)
+      - "'Kernel driver in use: xe' in intel_gpu_lspci.stdout"
+      - intel_gpu_nodes.results | map(attribute='stat.exists') | min
+    fail_msg: Intel B70, xe kernel driver, or required /dev/dri nodes are missing.
+
