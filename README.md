@@ -35,3 +35,17 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 - 메모리 실패 시 `inventories/host_vars/ubuntu-gpu.yml`에 `llama_context_size: 32768`, 이후 `16384`를 설정한다.
 - SYCL 런타임 문제 시 같은 파일에 `llama_backend: vulkan`을 설정한다.
 - 방화벽과 TLS는 이 저장소에서 관리하지 않는다.
+
+## API TPS 벤치마크
+
+실행 중인 서버를 중단하지 않고 현재 SYCL/64K/parallel 1 구성의 prompt 처리와
+token generation 성능을 측정한다. API 키는 `ansible-inventory`에서 메모리로만
+읽으며 출력이나 결과 파일에 저장하지 않는다.
+
+```bash
+make benchmark-api
+```
+
+결과는 `benchmarks/results/<UTC timestamp>-api.json`과 `benchmarks/latest.md`에
+저장된다. synthetic 요청은 prompt cache를 끄고 정확한 토큰 길이로 5회씩,
+실제 chat 요청은 3회 측정한다. 실행 중에는 단일 server slot을 벤치마크가 점유한다.

@@ -1,7 +1,8 @@
-.PHONY: install-tools install-requirements syntax validate lint verify ping check apply
+.PHONY: install-tools install-requirements syntax validate test lint verify ping check apply benchmark-api
 
 ANSIBLE_PLAYBOOK ?= ansible-playbook
 ANSIBLE_GALAXY ?= ansible-galaxy
+PYTHON ?= python3
 ANSIBLE_ARGS ?=
 
 install-tools:
@@ -18,11 +19,14 @@ syntax:
 validate:
 	$(ANSIBLE_PLAYBOOK) tests/validate_project.yml
 
+test:
+	$(PYTHON) -m unittest discover -s tests -p 'test_*.py'
+
 lint:
 	yamllint .
 	ansible-lint
 
-verify: syntax validate lint
+verify: syntax validate test lint
 
 ping:
 	$(ANSIBLE_PLAYBOOK) playbooks/ping.yml $(ANSIBLE_ARGS)
@@ -33,3 +37,5 @@ check:
 apply:
 	$(ANSIBLE_PLAYBOOK) playbooks/setup.yml $(ANSIBLE_ARGS)
 
+benchmark-api:
+	$(PYTHON) scripts/benchmark_api.py
