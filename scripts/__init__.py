@@ -1,2 +1,1 @@
 """Repository automation scripts."""
-
