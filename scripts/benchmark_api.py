@@ -85,9 +85,9 @@ def git_sha() -> str:
     ).stdout.strip()
 
 
-def container_state() -> dict[str, Any]:
+def container_state(name: str) -> dict[str, Any]:
     process = subprocess.run(
-        ["ansible", "ubuntu-gpu", "-m", "command", "-a", "docker inspect llama-server"],
+        ["ansible", "ubuntu-gpu", "-m", "command", "-a", f"docker inspect {name}"],
         cwd=ROOT,
         check=True,
         capture_output=True,
@@ -107,7 +107,7 @@ def container_state() -> dict[str, Any]:
     }
 
 
-def preflight(client: LlamaClient) -> tuple[dict[str, Any], dict[str, Any]]:
+def preflight(client: LlamaClient, container: str) -> tuple[dict[str, Any], dict[str, Any]]:
     health, _ = client.request("GET", "/health")
     if health.get("status") != "ok":
         raise BenchmarkError(f"server is not healthy: {health}")
@@ -115,7 +115,7 @@ def preflight(client: LlamaClient) -> tuple[dict[str, Any], dict[str, Any]]:
     if any(slot.get("is_processing") for slot in slots):
         raise BenchmarkError("server is currently processing another request")
     props, _ = client.request("GET", "/props")
-    return props, container_state()
+    return props, container_state(container)
 
 
 def build_token_corpus(client: LlamaClient, minimum: int) -> list[int]:
@@ -261,7 +261,8 @@ def main() -> int:
     inventory = load_inventory()
     base_url = f"http://{inventory['llama_bind_address']}:{inventory['llama_port']}"
     client = LlamaClient(base_url, inventory["llm_api_key"])
-    props, state_before = preflight(client)
+    container = inventory.get("llama_container_name", "llama-server")
+    props, state_before = preflight(client, container)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     tokens = build_token_corpus(client, max(PROMPT_CASES))
     samples: list[dict[str, Any]] = []
@@ -306,7 +307,7 @@ def main() -> int:
         samples.append(sample_record("chat128", "chat", repetition, response, wall_ms, None, 128))
 
     validate_samples(samples)
-    state_after = container_state()
+    state_after = container_state(container)
     if state_after["restart_count"] != state_before["restart_count"] or state_after["oom_killed"]:
         raise BenchmarkError("container restarted or was OOM-killed during the benchmark")
 

@@ -4,3 +4,4 @@
     project_src: "{{ vllm_server_install_dir }}"
     state: restarted
   become: true
+  when: not ansible_check_mode or vllm_server_install.stat.exists

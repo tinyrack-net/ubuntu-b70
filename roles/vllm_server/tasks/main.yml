@@ -1,5 +1,10 @@
 ---
-- name: Create vLLM server directories
+- name: Check vLLM install directory
+  ansible.builtin.stat:
+    path: "{{ vllm_server_install_dir }}"
+  register: vllm_server_install
+
+- name: Create vLLM base directories
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
@@ -9,6 +14,38 @@
   loop:
     - {path: "{{ vllm_server_install_dir }}", mode: "0755"}
     - {path: "{{ vllm_server_api_key_path | dirname }}", mode: "0700"}
+    - {path: "{{ vllm_server_data_dir }}", mode: "0755"}
+  become: true
+
+- name: Check legacy vLLM cache
+  ansible.builtin.stat:
+    path: "{{ vllm_server_legacy_hf_cache_dir }}"
+  register: vllm_server_legacy_cache
+
+- name: Check vLLM cache destination
+  ansible.builtin.stat:
+    path: "{{ vllm_server_hf_cache_dir }}"
+  register: vllm_server_cache
+
+- name: Move legacy vLLM cache into the vLLM data directory
+  ansible.builtin.command:
+    argv:
+      - mv
+      - "{{ vllm_server_legacy_hf_cache_dir }}"
+      - "{{ vllm_server_hf_cache_dir }}"
+  when:
+    - vllm_server_legacy_cache.stat.exists
+    - not vllm_server_cache.stat.exists
+  become: true
+
+- name: Create vLLM server directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
     - {path: "{{ vllm_server_hf_cache_dir }}", mode: "0755"}
   become: true
 
@@ -41,6 +78,7 @@
     wait: false
     remove_orphans: true
   become: true
+  when: not ansible_check_mode or vllm_server_install.stat.exists
 
 - name: Apply pending vLLM restart
   ansible.builtin.meta: flush_handlers

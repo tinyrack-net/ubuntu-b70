@@ -2,7 +2,7 @@
 services:
   llama-server:
     image: "{{ llama_intel_image if llama_backend == 'intel' else llama_vulkan_image }}"
-    container_name: "{{ llm_container_name }}"
+    container_name: "{{ llama_container_name }}"
     restart: unless-stopped
     ports:
       - "{{ llama_bind_address }}:{{ llama_port }}:8080"

@@ -195,7 +195,8 @@ def run() -> int:
     models = client.json("GET", "/v1/models")["data"]
     model = models[0]["id"]
     engine = inv.get("llm_engine", "llama_cpp")
-    container = inv.get("llm_container_name", "llama-server")
+    container = (inv.get("vllm_container_name", "vllm-server") if engine == "vllm"
+                 else inv.get("llama_container_name", "llama-server"))
     before = container_state(container)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     corpus = ("benchmark alpha beta gamma delta epsilon zeta eta theta " * 6000)

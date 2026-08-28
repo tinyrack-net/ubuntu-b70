@@ -1,8 +1,8 @@
 ---
 services:
-  llama-server:
+  vllm-server:
     image: "{{ vllm_image }}"
-    container_name: "{{ llm_container_name }}"
+    container_name: "{{ vllm_container_name }}"
     restart: unless-stopped
     ports:
       - "{{ llama_bind_address }}:{{ llama_port }}:8080"

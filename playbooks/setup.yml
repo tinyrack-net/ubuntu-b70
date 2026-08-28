@@ -18,6 +18,8 @@
       tags: docker
     - role: intel_gpu
       tags: intel_gpu
+    - role: llm_runtime
+      tags: llm_runtime
     - role: llama_server
       tags: llama_server
       when: llm_engine == 'llama_cpp'

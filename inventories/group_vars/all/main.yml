@@ -2,7 +2,8 @@
 ansible_private_key: "{{ vault_ssh_private_key }}"
 llm_api_key: "{{ vault_llm_api_key }}"
 llm_engine: vllm
-llm_container_name: llama-server
+llama_container_name: llama-server
+vllm_container_name: vllm-server
 
 llama_bind_address: 10.132.247.37
 llama_port: 8080

@@ -28,6 +28,14 @@ class RoleSeparationTests(unittest.TestCase):
         self.assertIn("when: llm_engine == 'llama_cpp'", playbook)
         self.assertIn("role: vllm_server", playbook)
         self.assertIn("when: llm_engine == 'vllm'", playbook)
+        self.assertIn("role: llm_runtime", playbook)
+
+    def test_each_compose_uses_its_engine_name(self):
+        llama = (ROOT / "roles/llama_server/templates/compose.yml.j2").read_text()
+        vllm = (ROOT / "roles/vllm_server/templates/compose.yml.j2").read_text()
+        self.assertIn("container_name: \"{{ llama_container_name }}\"", llama)
+        self.assertIn("vllm-server:", vllm)
+        self.assertIn("container_name: \"{{ vllm_container_name }}\"", vllm)
 
 
 if __name__ == "__main__":
