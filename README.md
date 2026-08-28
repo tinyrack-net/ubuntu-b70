@@ -33,6 +33,8 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 ## 운영 설정
 
 - 기본 엔진: vLLM XPU, context 32768, max sequences 4
+- `vllm_server`와 `llama_server` role은 엔진별 task와 Compose 구성을 독립적으로
+  관리하며, `llm_engine` 값에 따라 playbook이 하나만 실행한다.
 - vLLM 메모리 실패 시 `inventories/host_vars/ubuntu-gpu.yml`에
   `vllm_context_size: 16384`를 설정한다.
 - llama.cpp로 롤백하려면 같은 파일에 `llm_engine: llama_cpp`를 설정한다. 기존

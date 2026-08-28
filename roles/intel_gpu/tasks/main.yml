@@ -24,6 +24,7 @@
   ansible.builtin.command: lspci -nnk
   register: intel_gpu_lspci
   changed_when: false
+  check_mode: false
 
 - name: Check Intel GPU device nodes
   ansible.builtin.stat:
@@ -40,4 +41,3 @@
       - "'Kernel driver in use: xe' in intel_gpu_lspci.stdout"
       - intel_gpu_nodes.results | map(attribute='stat.exists') | min
     fail_msg: Intel B70, xe kernel driver, or required /dev/dri nodes are missing.
-

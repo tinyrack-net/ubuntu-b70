@@ -1,0 +1,6 @@
+---
+# Keep the existing paths so splitting the role does not restart or redownload
+# the already deployed service during migration.
+vllm_server_install_dir: /opt/llama-server
+vllm_server_api_key_path: /etc/llama-server/api-keys
+vllm_server_hf_cache_dir: /var/lib/llama-server/huggingface

@@ -1,0 +1,6 @@
+---
+- name: Restart vllm-server
+  community.docker.docker_compose_v2:
+    project_src: "{{ vllm_server_install_dir }}"
+    state: restarted
+  become: true

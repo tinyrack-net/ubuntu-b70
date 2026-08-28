@@ -1,0 +1,69 @@
+---
+- name: Create vLLM server directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ vllm_server_install_dir }}", mode: "0755"}
+    - {path: "{{ vllm_server_api_key_path | dirname }}", mode: "0700"}
+    - {path: "{{ vllm_server_hf_cache_dir }}", mode: "0755"}
+  become: true
+
+- name: Install vLLM API key file
+  ansible.builtin.copy:
+    content: "{{ llama_api_key }}\n"
+    dest: "{{ vllm_server_api_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+  no_log: true
+  notify: Restart vllm-server
+
+- name: Render vLLM Compose project
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ vllm_server_install_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart vllm-server
+
+- name: Start vLLM Compose project
+  community.docker.docker_compose_v2:
+    project_src: "{{ vllm_server_install_dir }}"
+    pull: missing
+    state: present
+    wait: false
+    remove_orphans: true
+  become: true
+
+- name: Apply pending vLLM restart
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for vLLM health endpoint
+  ansible.builtin.uri:
+    url: "http://{{ llama_bind_address }}:{{ llama_port }}/health"
+    status_code:
+      - 200
+      - 503
+    return_content: true
+    headers:
+      Authorization: "Bearer {{ llama_api_key }}"
+  register: vllm_server_health
+  until: vllm_server_health.status == 200
+  retries: 180
+  delay: 10
+  no_log: true
+
+- name: Verify authenticated vLLM model endpoint
+  ansible.builtin.uri:
+    url: "http://{{ llama_bind_address }}:{{ llama_port }}/v1/models"
+    headers:
+      Authorization: "Bearer {{ llama_api_key }}"
+    status_code: 200
+  no_log: true

@@ -10,7 +10,6 @@
     - {path: "{{ llama_server_install_dir }}", mode: "0755"}
     - {path: "{{ llama_server_model_dir }}", mode: "0755"}
     - {path: "{{ llama_server_api_key_path | dirname }}", mode: "0700"}
-    - {path: "{{ llama_server_hf_cache_dir }}", mode: "0755"}
   become: true
 
 - name: Download pinned language model
@@ -22,7 +21,6 @@
     mode: "0644"
     timeout: 3600
   become: true
-  when: llm_engine == 'llama_cpp'
 
 - name: Download pinned multimodal projector
   ansible.builtin.get_url:
@@ -33,7 +31,6 @@
     mode: "0644"
     timeout: 3600
   become: true
-  when: llm_engine == 'llama_cpp'
 
 - name: Install llama-server API key file
   ansible.builtin.copy:

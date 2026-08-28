@@ -20,4 +20,7 @@
       tags: intel_gpu
     - role: llama_server
       tags: llama_server
-
+      when: llm_engine == 'llama_cpp'
+    - role: vllm_server
+      tags: vllm_server
+      when: llm_engine == 'vllm'

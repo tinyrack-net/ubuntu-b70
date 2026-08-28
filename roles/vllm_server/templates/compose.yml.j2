@@ -1,0 +1,36 @@
+---
+services:
+  llama-server:
+    image: "{{ vllm_image }}"
+    container_name: "{{ llm_container_name }}"
+    restart: unless-stopped
+    ports:
+      - "{{ llama_bind_address }}:{{ llama_port }}:8080"
+    devices:
+      - "/dev/dri:/dev/dri"
+    ipc: host
+    privileged: true
+    environment:
+      ONEAPI_DEVICE_SELECTOR: level_zero:0
+    volumes:
+      - "{{ vllm_server_api_key_path }}:/run/secrets/llama_api_key:ro"
+      - "{{ vllm_server_hf_cache_dir }}:/root/.cache/huggingface"
+      - "/dev/dri/by-path:/dev/dri/by-path:ro"
+    entrypoint:
+      - /bin/bash
+      - -lc
+    command:
+      - >-
+        export VLLM_API_KEY="$$(cat /run/secrets/llama_api_key)";
+        exec vllm serve "{{ vllm_model }}"
+        --revision "{{ vllm_model_revision }}"
+        --tokenizer "{{ vllm_tokenizer }}"
+        --tokenizer-revision "{{ vllm_tokenizer_revision }}"
+        --served-model-name "{{ vllm_served_model_name }}"
+        --language-model-only
+        --host 0.0.0.0 --port 8080
+        --dtype float16 --quantization "{{ vllm_quantization }}"
+        --max-model-len "{{ vllm_context_size }}"
+        --max-num-seqs "{{ vllm_max_num_seqs }}"
+        --gpu-memory-utilization "{{ vllm_gpu_memory_utilization }}"
+        --generation-config vllm
