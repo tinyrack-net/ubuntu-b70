@@ -1,19 +1,53 @@
 ---
 services:
   llama-server:
+{% if llm_engine == 'vllm' %}
+    image: "{{ vllm_image }}"
+{% else %}
     image: "{{ llama_intel_image if llama_backend == 'intel' else llama_vulkan_image }}"
-    container_name: llama-server
+{% endif %}
+    container_name: "{{ llm_container_name }}"
     restart: unless-stopped
     ports:
       - "{{ llama_bind_address }}:{{ llama_port }}:8080"
     devices:
+{% if llm_engine == 'vllm' %}
+      - "/dev/dri:/dev/dri"
+{% else %}
       - "{{ intel_gpu_card_device }}:{{ intel_gpu_card_device }}"
       - "{{ intel_gpu_render_device }}:{{ intel_gpu_render_device }}"
+{% endif %}
+    ipc: host
+{% if llm_engine == 'vllm' %}
+    privileged: true
+{% endif %}
     environment:
       ONEAPI_DEVICE_SELECTOR: level_zero:0
     volumes:
-      - "{{ llama_server_model_dir }}:/models:ro"
       - "{{ llama_server_api_key_path }}:/run/secrets/llama_api_key:ro"
+{% if llm_engine == 'vllm' %}
+      - "{{ llama_server_hf_cache_dir }}:/root/.cache/huggingface"
+      - "/dev/dri/by-path:/dev/dri/by-path:ro"
+    entrypoint:
+      - /bin/bash
+      - -lc
+    command:
+      - >-
+        export VLLM_API_KEY="$$(cat /run/secrets/llama_api_key)";
+        exec vllm serve "{{ vllm_model }}"
+        --revision "{{ vllm_model_revision }}"
+        --tokenizer "{{ vllm_tokenizer }}"
+        --tokenizer-revision "{{ vllm_tokenizer_revision }}"
+        --served-model-name "{{ vllm_served_model_name }}"
+        --language-model-only
+        --host 0.0.0.0 --port 8080
+        --dtype float16 --quantization "{{ vllm_quantization }}"
+        --max-model-len "{{ vllm_context_size }}"
+        --max-num-seqs "{{ vllm_max_num_seqs }}"
+        --gpu-memory-utilization "{{ vllm_gpu_memory_utilization }}"
+        --generation-config vllm
+{% else %}
+      - "{{ llama_server_model_dir }}:/models:ro"
     command:
       - --model
       - "/models/{{ llama_model_file }}"
@@ -42,3 +76,4 @@ services:
       - none
       - --image-min-tokens
       - "1024"
+{% endif %}

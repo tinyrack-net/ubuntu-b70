@@ -10,6 +10,7 @@
     - {path: "{{ llama_server_install_dir }}", mode: "0755"}
     - {path: "{{ llama_server_model_dir }}", mode: "0755"}
     - {path: "{{ llama_server_api_key_path | dirname }}", mode: "0700"}
+    - {path: "{{ llama_server_hf_cache_dir }}", mode: "0755"}
   become: true
 
 - name: Download pinned language model
@@ -21,6 +22,7 @@
     mode: "0644"
     timeout: 3600
   become: true
+  when: llm_engine == 'llama_cpp'
 
 - name: Download pinned multimodal projector
   ansible.builtin.get_url:
@@ -31,6 +33,7 @@
     mode: "0644"
     timeout: 3600
   become: true
+  when: llm_engine == 'llama_cpp'
 
 - name: Install llama-server API key file
   ansible.builtin.copy:
@@ -59,6 +62,7 @@
     pull: missing
     state: present
     wait: false
+    remove_orphans: true
   become: true
 
 - name: Apply pending llama-server restart
@@ -71,7 +75,18 @@
       - 200
       - 503
     return_content: true
+    headers:
+      Authorization: "Bearer {{ llama_api_key }}"
   register: llama_server_health
   until: llama_server_health.status == 200
   retries: 180
   delay: 10
+  no_log: true
+
+- name: Verify authenticated OpenAI model endpoint
+  ansible.builtin.uri:
+    url: "http://{{ llama_bind_address }}:{{ llama_port }}/v1/models"
+    headers:
+      Authorization: "Bearer {{ llama_api_key }}"
+    status_code: 200
+  no_log: true

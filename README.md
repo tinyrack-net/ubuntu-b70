@@ -1,7 +1,9 @@
 # ubuntu-b70 LLM server
 
-`ubuntu-gpu`(Ubuntu 26.04, Intel Arc Pro B70)을 재현 가능한 llama.cpp 서버로 구성한다.
-기본 모델은 `unsloth/Qwen3.8-27B-GGUF`의 `UD-Q4_K_M`이며 비전 입력을 지원한다.
+`ubuntu-gpu`(Ubuntu 26.04, Intel Arc Pro B70)을 재현 가능한 OpenAI 호환 LLM 서버로 구성한다.
+기본 엔진은 공식 `vllm/vllm-openai-xpu` 이미지이며, 모델은 단일 B70에 맞춘
+`abihsoro/Qwen3.8-27B-AWQ-INT4` 텍스트 전용 체크포인트다. 이미지 digest와 모델
+revision을 모두 고정한다.
 
 ## 최초 설정
 
@@ -30,22 +32,24 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 
 ## 운영 설정
 
-- 기본 backend: Intel SYCL
-- 기본 context: 65536, parallel 1
-- 메모리 실패 시 `inventories/host_vars/ubuntu-gpu.yml`에 `llama_context_size: 32768`, 이후 `16384`를 설정한다.
-- SYCL 런타임 문제 시 같은 파일에 `llama_backend: vulkan`을 설정한다.
+- 기본 엔진: vLLM XPU, context 32768, max sequences 4
+- vLLM 메모리 실패 시 `inventories/host_vars/ubuntu-gpu.yml`에
+  `vllm_context_size: 16384`를 설정한다.
+- llama.cpp로 롤백하려면 같은 파일에 `llm_engine: llama_cpp`를 설정한다. 기존
+  GGUF 모델과 Intel SYCL 설정은 그대로 보존된다.
+- llama.cpp의 SYCL 런타임 문제 시 같은 파일에 `llama_backend: vulkan`을 설정한다.
 - 방화벽과 TLS는 이 저장소에서 관리하지 않는다.
 
 ## API TPS 벤치마크
 
-실행 중인 서버를 중단하지 않고 현재 SYCL/64K/parallel 1 구성의 prompt 처리와
-token generation 성능을 측정한다. API 키는 `ansible-inventory`에서 메모리로만
-읽으며 출력이나 결과 파일에 저장하지 않는다.
+실행 중인 엔진을 중단하지 않고 공통 OpenAI streaming API로 prompt 처리, token
+generation, 동시성 1/2/4 성능을 측정한다. API 키는 `ansible-inventory`에서
+메모리로만 읽으며 출력이나 결과 파일에 저장하지 않는다.
 
 ```bash
 make benchmark-api
 ```
 
-결과는 `benchmarks/results/<UTC timestamp>-api.json`과 `benchmarks/latest.md`에
-저장된다. synthetic 요청은 prompt cache를 끄고 정확한 토큰 길이로 5회씩,
-실제 chat 요청은 3회 측정한다. 실행 중에는 단일 server slot을 벤치마크가 점유한다.
+결과는 `benchmarks/results/<UTC timestamp>-<engine>-openai.json`과
+`benchmarks/latest.md`에 저장된다. 128/512/2048-token prompt와 128/256-token
+generation을 각각 5회 측정하고, 동시성별 aggregate output tokens/s도 기록한다.

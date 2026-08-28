@@ -38,4 +38,4 @@ apply:
 	$(ANSIBLE_PLAYBOOK) playbooks/setup.yml $(ANSIBLE_ARGS)
 
 benchmark-api:
-	$(PYTHON) scripts/benchmark_api.py
+	$(PYTHON) scripts/benchmark_openai.py

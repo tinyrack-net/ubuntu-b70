@@ -1,6 +1,8 @@
 ---
 ansible_private_key: "{{ vault_ssh_private_key }}"
 llama_api_key: "{{ vault_llama_api_key }}"
+llm_engine: vllm
+llm_container_name: llama-server
 
 llama_bind_address: 10.132.247.37
 llama_port: 8080
@@ -22,3 +24,14 @@ llama_model_checksum: sha256:322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50
 llama_mmproj_file: mmproj-F16.gguf
 llama_mmproj_checksum: sha256:cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e
 
+vllm_image: >-
+  vllm/vllm-openai-xpu:v0.28.0@sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8
+vllm_model: abihsoro/Qwen3.8-27B-AWQ-INT4
+vllm_model_revision: f2e0cac39907e7b1ed7fdb210363dd33cc18f993
+vllm_tokenizer: Qwen/Qwen3.8-27B
+vllm_tokenizer_revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0
+vllm_quantization: compressed-tensors
+vllm_served_model_name: Qwen3.8-27B
+vllm_context_size: 32768
+vllm_max_num_seqs: 4
+vllm_gpu_memory_utilization: "0.92"

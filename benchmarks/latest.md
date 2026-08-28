@@ -1,18 +1,43 @@
-# Latest API TPS benchmark
+# LLM engine benchmark
 
-- Run: `20260828T034312Z`
-- Git: `23c88bb9a26925ef4ce93d199ab5fbde0d2c3f7c`
-- Model: `Qwen3.8-27B-UD-Q4_K_M.gguf`
-- Backend/context/parallel: `intel` / `65536` / `1`
-- Raw result: [`20260828T034312Z-api.json`](results/20260828T034312Z-api.json)
+Client-observed OpenAI streaming results; values are medians unless noted.
 
-| Case | Kind | N | Prompt t/s mean | Decode t/s mean | Wall ms median |
-|---|---:|---:|---:|---:|---:|
-| pp128 | prompt | 5 | 215.86 | 0.00 | 600.15 |
-| pp512 | prompt | 5 | 602.92 | 0.00 | 857.05 |
-| pp2048 | prompt | 5 | 685.09 | 0.00 | 3001.55 |
-| tg128 | generation | 5 | 112.60 | 20.84 | 6669.31 |
-| tg256 | generation | 5 | 112.57 | 20.76 | 12859.46 |
-| chat128 | chat | 3 | 84.80 | 20.82 | 7366.67 |
+## llama_cpp
 
-Synthetic cases disable prompt caching. Chat cases use the OpenAI-compatible route and report actual generated token counts.
+- Run: `20260828T040452Z`
+- Model: `/models/Qwen3.8-27B-UD-Q4_K_M.gguf`
+- Context: 65536
+
+| Case | Prompt tok/s | Decode tok/s | TTFT ms | TPOT ms |
+| --- | ---: | ---: | ---: | ---: |
+| pp128 | 560.67 | 0.00 | 228.30 | 0.00 |
+| pp512 | 2205.17 | 0.00 | 232.18 | 0.00 |
+| pp2048 | 8756.30 | 0.00 | 233.89 | 0.00 |
+| tg128 | 138.00 | 21.12 | 463.76 | 47.35 |
+| tg256 | 133.30 | 20.90 | 480.13 | 47.84 |
+
+| Concurrency | Requests | Aggregate output tok/s | Median TTFT ms |
+| ---: | ---: | ---: | ---: |
+| 1 | 5 | 19.90 | 238.57 |
+| 2 | 10 | 20.19 | 12893.35 |
+| 4 | 20 | 20.19 | 38236.56 |
+
+## vllm
+
+- Run: `20260828T045831Z`
+- Model: `Qwen3.8-27B`
+- Context: 32768
+
+| Case | Prompt tok/s | Decode tok/s | TTFT ms | TPOT ms |
+| --- | ---: | ---: | ---: | ---: |
+| pp128 | 859.55 | 0.00 | 148.91 | 0.00 |
+| pp512 | 1814.16 | 0.00 | 282.22 | 0.00 |
+| pp2048 | 8704.22 | 0.00 | 235.29 | 0.00 |
+| tg128 | 692.17 | 26.66 | 92.46 | 37.50 |
+| tg256 | 671.65 | 26.86 | 95.29 | 37.23 |
+
+| Concurrency | Requests | Aggregate output tok/s | Median TTFT ms |
+| ---: | ---: | ---: | ---: |
+| 1 | 5 | 26.07 | 281.05 |
+| 2 | 10 | 50.62 | 423.40 |
+| 4 | 20 | 95.10 | 1062.20 |
