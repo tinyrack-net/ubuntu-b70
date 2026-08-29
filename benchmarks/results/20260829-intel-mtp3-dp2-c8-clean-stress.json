@@ -1,0 +1,30 @@
+{
+  "concurrency": 8,
+  "container_after": {
+    "health": null,
+    "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "oom_killed": false,
+    "restart_count": 0,
+    "status": "running"
+  },
+  "container_before": {
+    "health": null,
+    "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "oom_killed": false,
+    "restart_count": 0,
+    "status": "running"
+  },
+  "counts": {
+    "bad_content": 0,
+    "errors": 0,
+    "ok": 354
+  },
+  "duration_s": 300,
+  "latency_ms": {
+    "max": 23795.375436980976,
+    "median": 7839.545130511397
+  },
+  "profile": "dp2_intel_mtp3_c8",
+  "timestamp": "2026-08-29T03:52:05.346105+00:00",
+  "tool_call_ok": true
+}

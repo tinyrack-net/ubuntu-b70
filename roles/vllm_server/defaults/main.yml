@@ -40,7 +40,7 @@ vllm_server_instances:
     device_selector: level_zero:0,1
     tensor_parallel_size: 1
     data_parallel_size: 2
-    max_num_seqs: 2
+    max_num_seqs: 4
     extra_environment:
       VLLM_WORKER_MULTIPROC_METHOD: spawn
     speculative_config: {method: qwen3_5_mtp, num_speculative_tokens: 3}

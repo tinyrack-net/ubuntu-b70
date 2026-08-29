@@ -33,7 +33,7 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 ## 운영 설정
 
 - 기본 엔진: Intel vLLM XPU, context 32768, 내부 data parallel 2, rank별 max
-  sequences 2(전체 동시성 4), MTP3, XPU Graph 활성화, prefix caching 비활성화
+  sequences 4(전체 동시성 8), MTP3, XPU Graph 활성화, prefix caching 비활성화
 - `vllm-server`/8080 단일 API가 GPU0·GPU1에 요청을 분산하며 5분 주기의 content
   canary가 적용된다. vLLM의 DP queue 기반 내부 load balancer를 사용하므로 별도의
   프록시는 필요하지 않다.

@@ -289,7 +289,11 @@ def benchmark_environment(profile: str, inv: dict[str, Any], containers: set[str
             "prompt_token_cases": list(PROMPT_CASES),
             "generation_token_cases": list(GENERATION_CASES),
             "single_request_repetitions": REPETITIONS,
-            "concurrency_levels": list(CONCURRENCY_LEVELS),
+            "concurrency_levels": [
+                int(level) for level in values.get(
+                    "vllm_benchmark_concurrency_levels", CONCURRENCY_LEVELS
+                )
+            ],
             "concurrency_repetitions": CONCURRENCY_REPETITIONS,
             "concurrency_prompt_tokens": 512,
             "concurrency_output_tokens": 256,
@@ -300,6 +304,11 @@ def benchmark_environment(profile: str, inv: dict[str, Any], containers: set[str
 def run() -> int:
     args = parse_args()
     inv = inventory(args.profile)
+    concurrency_levels = tuple(
+        int(level) for level in inv.get(
+            "vllm_benchmark_concurrency_levels", CONCURRENCY_LEVELS
+        )
+    )
     key = inv["llm_api_key"]
     target_specs = args.target or [
         f"{inv['llm_runtime_port']}:{inv.get('llm_runtime_vllm_container_name', 'vllm-server')}"
@@ -366,7 +375,7 @@ def run() -> int:
             nonce += 1
 
     concurrency_results = []
-    for concurrency in CONCURRENCY_LEVELS:
+    for concurrency in concurrency_levels:
         count = concurrency * 5
         rows = []
         output_rates = []

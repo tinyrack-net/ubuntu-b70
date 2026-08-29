@@ -78,6 +78,7 @@ vllm:num_requests_running 1
             "vllm_server_max_num_batched_tokens": 2048,
             "vllm_server_enable_prefix_caching": False,
             "vllm_server_gpu_memory_utilization": "0.92",
+            "vllm_benchmark_concurrency_levels": [1, 2, 4, 8],
             "vllm_server_instances": [{
                 "name": "vllm-server", "port": 8080,
                 "device_selector": "level_zero:0,1",
@@ -90,6 +91,7 @@ vllm:num_requests_running 1
         self.assertEqual(environment["instances"][0]["data_parallel_size"], 2)
         self.assertTrue(environment["xpu_graph_enabled"])
         self.assertEqual(environment["instances"][0]["image"], "intel@sha256:one")
+        self.assertEqual(environment["benchmark"]["concurrency_levels"], [1, 2, 4, 8])
 
 
 if __name__ == "__main__":

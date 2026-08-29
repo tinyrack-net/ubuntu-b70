@@ -66,7 +66,7 @@ class RoleSeparationTests(unittest.TestCase):
         self.assertIn("num_speculative_tokens: 3", defaults)
         self.assertIn("device_selector: level_zero:0,1", defaults)
         self.assertIn("data_parallel_size: 2", defaults)
-        self.assertIn("max_num_seqs: 2", defaults)
+        self.assertIn("max_num_seqs: 4", defaults)
         self.assertNotIn("port: 8081", defaults)
         self.assertIn("vllm_server_enable_prefix_caching: false", defaults)
 
