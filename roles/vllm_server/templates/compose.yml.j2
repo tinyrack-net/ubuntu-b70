@@ -79,5 +79,8 @@ services:
         --enable-auto-tool-choice
         --tool-call-parser "{{ vllm_server_tool_call_parser }}"
 {% endif %}
+{% if vllm_server_reasoning_parser | default('') | length > 0 %}
+        --reasoning-parser "{{ vllm_server_reasoning_parser }}"
+{% endif %}
         --generation-config vllm
 {% endfor %}

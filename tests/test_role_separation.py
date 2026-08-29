@@ -47,9 +47,11 @@ class RoleSeparationTests(unittest.TestCase):
         defaults = (ROOT / "roles/vllm_server/defaults/main.yml").read_text()
         compose = (ROOT / "roles/vllm_server/templates/compose.yml.j2").read_text()
         self.assertIn("vllm_server_enable_auto_tool_choice: true", defaults)
-        self.assertIn("vllm_server_tool_call_parser: hermes", defaults)
+        self.assertIn("vllm_server_tool_call_parser: qwen3_xml", defaults)
+        self.assertIn("vllm_server_reasoning_parser: qwen3", defaults)
         self.assertIn("--enable-auto-tool-choice", compose)
         self.assertIn('--tool-call-parser "{{ vllm_server_tool_call_parser }}"', compose)
+        self.assertIn('--reasoning-parser "{{ vllm_server_reasoning_parser }}"', compose)
 
     def test_vllm_uses_benchmarked_xpu_throughput_defaults(self):
         defaults = (ROOT / "roles/vllm_server/defaults/main.yml").read_text()
