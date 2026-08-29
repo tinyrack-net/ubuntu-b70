@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a content-validating C4 soak against an OpenAI-compatible endpoint."""
+"""Run a content-validating concurrent soak against an OpenAI-compatible endpoint."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from scripts.benchmark_openai import Client, container_state, inventory
 
 
 MARKER = "B70_STRESS_OK"
+MAX_OUTPUT_TOKENS = 128
 
 
 def main() -> int:
@@ -36,11 +37,13 @@ def main() -> int:
         f"Reply with exactly {MARKER} and nothing else.",
         f"다른 말 없이 정확히 {MARKER}만 답하세요.",
         f"Read this code: `sum(range(11))`. Ignore its result and output exactly {MARKER}.",
-        ("long-context filler " * 4096) + f"\nOutput exactly {MARKER} and nothing else.",
+        ("long-context filler " * 4096)
+        + f"\nOutput exactly {MARKER} and nothing else. /no_think",
     ]
     deadline = time.monotonic() + args.duration
     lock = threading.Lock()
     counts = {"ok": 0, "bad_content": 0, "errors": 0}
+    bad_content_samples: list[dict[str, object]] = []
     latencies: list[float] = []
 
     def worker(index: int) -> None:
@@ -53,15 +56,25 @@ def main() -> int:
                     "messages": [{"role": "user", "content": prompts[iteration % len(prompts)]}],
                     "temperature": 0,
                     "seed": 0,
-                    "max_tokens": 32,
+                    "max_tokens": MAX_OUTPUT_TOKENS,
                 })
-                content = (response["choices"][0]["message"].get("content") or "").strip()
+                choice = response["choices"][0]
+                message = choice["message"]
+                content = (message.get("content") or "").strip()
                 key = "ok" if MARKER in content and set(content) != {"!"} else "bad_content"
             except Exception:  # The result records failures without exposing credentials or bodies.
                 key = "errors"
             with lock:
                 counts[key] += 1
                 latencies.append((time.monotonic() - started) * 1000)
+                if key == "bad_content" and len(bad_content_samples) < 10:
+                    reasoning = message.get("reasoning") or message.get("reasoning_content") or ""
+                    bad_content_samples.append({
+                        "prompt_kind": iteration % len(prompts),
+                        "finish_reason": choice.get("finish_reason"),
+                        "content_prefix": content[:80],
+                        "reasoning_length": len(reasoning),
+                    })
             iteration += args.concurrency
 
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
@@ -85,24 +98,27 @@ def main() -> int:
     calls = tool_response["choices"][0]["message"].get("tool_calls") or []
     tool_ok = bool(calls and calls[0].get("function", {}).get("name") == "lookup_temperature")
     after = container_state(args.container)
+    stable = (after["restart_count"] == before["restart_count"] and not after["oom_killed"])
+    passed = counts["bad_content"] == 0 and counts["errors"] == 0 and tool_ok and stable
     result = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "profile": args.profile,
         "duration_s": args.duration,
         "concurrency": args.concurrency,
         "counts": counts,
+        "bad_content_samples": bad_content_samples,
         "latency_ms": {
             "median": statistics.median(latencies),
             "max": max(latencies),
         },
         "tool_call_ok": tool_ok,
+        "stable": stable,
+        "passed": passed,
         "container_before": before,
         "container_after": after,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
-    stable = (after["restart_count"] == before["restart_count"] and not after["oom_killed"])
-    passed = counts["bad_content"] == 0 and counts["errors"] == 0 and tool_ok and stable
     print(json.dumps({"passed": passed, "counts": counts, "tool_call_ok": tool_ok, "stable": stable}))
     return 0 if passed else 1
 

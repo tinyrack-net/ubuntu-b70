@@ -69,3 +69,7 @@ override를 사용하는 비교 실험은 `benchmarks/profiles/`의 profile을 �
 Intel runtime, XPU Graph, batching, prefix caching, MTP 1/2/3 및 2-GPU replica까지 확장한
 최신 조사 결과는 [`benchmarks/b70-tuning-20260829.md`](benchmarks/b70-tuning-20260829.md)에
 기록되어 있다.
+
+128K context 후보는 FP8 KV로 메모리 용량은 확보했지만 Intel MTP3에서 출력이 `!`로
+붕괴해 탈락했다. 운영 기본값은 32768/auto KV를 유지하며 상세 결과는
+[`benchmarks/long-context-20260829.md`](benchmarks/long-context-20260829.md)에 기록되어 있다.

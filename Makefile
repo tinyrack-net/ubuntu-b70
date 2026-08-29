@@ -1,4 +1,4 @@
-.PHONY: install-tools install-requirements syntax validate test lint verify ping check apply benchmark-api
+.PHONY: install-tools install-requirements syntax validate test lint verify ping check apply benchmark-api benchmark-long-context
 
 ANSIBLE_PLAYBOOK ?= ansible-playbook
 ANSIBLE_GALAXY ?= ansible-galaxy
@@ -40,3 +40,6 @@ apply:
 
 benchmark-api:
 	$(PYTHON) -m scripts.benchmark_openai $(BENCHMARK_ARGS)
+
+benchmark-long-context:
+	$(PYTHON) -m scripts.benchmark_long_context $(BENCHMARK_ARGS)
