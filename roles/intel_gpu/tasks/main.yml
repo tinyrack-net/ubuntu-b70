@@ -1,4 +1,40 @@
 ---
+- name: Create Intel compute runtime package cache
+  ansible.builtin.file:
+    path: /var/cache/intel-compute-runtime
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Check Intel compute runtime package cache
+  ansible.builtin.stat:
+    path: /var/cache/intel-compute-runtime
+  register: intel_gpu_runtime_cache
+
+- name: Download pinned Intel compute runtime packages
+  ansible.builtin.get_url:
+    url: >-
+      {{ item.url | default('https://github.com/intel/compute-runtime/releases/download/' ~
+      intel_gpu_compute_runtime_release ~ '/' ~ item.name) }}
+    dest: "/var/cache/intel-compute-runtime/{{ item.name }}"
+    checksum: "sha256:{{ item.sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ intel_gpu_compute_runtime_packages }}"
+  become: true
+  when: not ansible_check_mode or intel_gpu_runtime_cache.stat.exists
+
+- name: Install pinned Intel compute runtime packages
+  ansible.builtin.apt:
+    deb: "/var/cache/intel-compute-runtime/{{ item.name }}"
+    state: present
+  loop: "{{ intel_gpu_compute_runtime_packages }}"
+  become: true
+  when: not ansible_check_mode
+
 - name: Install Intel GPU compute runtimes and diagnostics
   ansible.builtin.apt:
     name:
@@ -10,6 +46,24 @@
       - vulkan-tools
     state: present
   become: true
+
+- name: Read installed Intel Level Zero runtime version
+  ansible.builtin.command:
+    argv:
+      - dpkg-query
+      - -W
+      - "-f=${Version}"
+      - libze-intel-gpu1
+  register: intel_gpu_level_zero_version
+  changed_when: false
+  check_mode: false
+
+- name: Assert pinned Intel Level Zero runtime is installed
+  ansible.builtin.assert:
+    that:
+      - intel_gpu_level_zero_version.stdout == intel_gpu_compute_runtime_version
+    fail_msg: Intel Level Zero runtime does not match the repository-pinned version.
+  when: not ansible_check_mode
 
 - name: Add managed user to GPU groups
   ansible.builtin.user:

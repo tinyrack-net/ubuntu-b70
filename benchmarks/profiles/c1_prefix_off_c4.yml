@@ -1,0 +1,16 @@
+---
+vllm_benchmark_profile: c1_prefix_off_c4
+vllm_server_instances:
+  - name: vllm-server
+    port: 8080
+    device_selector: level_zero:0
+    tensor_parallel_size: 1
+    max_num_seqs: 4
+  - name: vllm-candidate
+    port: 8081
+    device_selector: level_zero:1
+    tensor_parallel_size: 1
+    max_num_seqs: 4
+    max_num_batched_tokens: 2048
+    enable_prefix_caching: false
+    enable_xpu_graph: true

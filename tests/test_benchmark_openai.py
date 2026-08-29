@@ -1,6 +1,14 @@
 import unittest
 
-from scripts.benchmark_openai import percentile, render_comparison, resolve_refs, stats, summarize
+from scripts.benchmark_openai import (
+    benchmark_environment,
+    parse_prometheus,
+    percentile,
+    render_comparison,
+    resolve_refs,
+    stats,
+    summarize,
+)
 
 
 class BenchmarkOpenAITests(unittest.TestCase):
@@ -27,6 +35,61 @@ class BenchmarkOpenAITests(unittest.TestCase):
         report = render_comparison([result])
         self.assertIn("Aggregate output tok/s", report)
         self.assertIn("| 4 | 20 | 48.00 |", report)
+
+    def test_parse_prometheus_keeps_speculative_metrics(self):
+        payload = """
+# HELP vllm:spec_decode_num_drafts Number of drafts
+vllm:spec_decode_num_drafts{model_name="qwen"} 20
+vllm:spec_decode_num_accepted_tokens{model_name="qwen"} 15
+vllm:num_requests_running 1
+"""
+        self.assertEqual(
+            parse_prometheus(payload),
+            {
+                "vllm:spec_decode_num_drafts": 20.0,
+                "vllm:spec_decode_num_accepted_tokens": 15.0,
+            },
+        )
+
+    def test_environment_records_per_instance_tuning(self):
+        inv = {
+            "vllm_server_image": "default@sha256:one",
+            "vllm_server_max_num_seqs": 4,
+            "vllm_server_max_num_batched_tokens": 2048,
+            "vllm_server_gpu_memory_utilization": 0.92,
+            "vllm_server_enable_prefix_caching": True,
+            "vllm_server_enable_xpu_graph": True,
+            "vllm_server_instances": [{
+                "name": "candidate", "port": 8081, "device_selector": "level_zero:1",
+                "image": "nightly@sha256:two", "max_num_batched_tokens": 4096,
+                "enable_prefix_caching": False, "enable_xpu_graph": False,
+            }],
+        }
+        environment = benchmark_environment("test", inv)
+        self.assertEqual(environment["max_num_batched_tokens"], 4096)
+        self.assertFalse(environment["prefix_caching_enabled"])
+
+    def test_environment_records_internal_data_parallelism(self):
+        inv = {
+            "vllm_server_image": "intel@sha256:one",
+            "vllm_server_model": "model",
+            "vllm_server_model_revision": "revision",
+            "vllm_server_max_num_seqs": 2,
+            "vllm_server_max_num_batched_tokens": 2048,
+            "vllm_server_enable_prefix_caching": False,
+            "vllm_server_gpu_memory_utilization": "0.92",
+            "vllm_server_instances": [{
+                "name": "vllm-server", "port": 8080,
+                "device_selector": "level_zero:0,1",
+                "tensor_parallel_size": 1, "data_parallel_size": 2,
+            }],
+        }
+        environment = benchmark_environment("dp2", inv)
+        self.assertEqual(environment["topology"], "data_parallel")
+        self.assertEqual(environment["gpu_count"], 2)
+        self.assertEqual(environment["instances"][0]["data_parallel_size"], 2)
+        self.assertTrue(environment["xpu_graph_enabled"])
+        self.assertEqual(environment["instances"][0]["image"], "intel@sha256:one")
 
 
 if __name__ == "__main__":

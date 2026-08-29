@@ -1,0 +1,23 @@
+---
+vllm_benchmark_profile: c1_redhat_mtp3_c4
+vllm_server_instances:
+  - name: vllm-server
+    port: 8080
+    device_selector: level_zero:0
+    tensor_parallel_size: 1
+    max_num_seqs: 4
+  - name: vllm-candidate
+    port: 8081
+    device_selector: level_zero:1
+    tensor_parallel_size: 1
+    model: RedHatAI/Qwen3.8-27B-INT4
+    model_revision: 2fb0debc365fb6c1683d7d3ad7722470919627a8
+    model_files:
+      - {name: model.safetensors, sha256: f078f51aed0c1dba613c1759487004ee06aba1a290606b6be125f59ab710959e}
+      - {name: model_mtp.safetensors, sha256: 1d8268aa85ace093a561e3e7b63b9d390dac1cd55a90cd55b5ec509c3c9da9fe}
+    quantization: compressed-tensors
+    context_size: 32768
+    max_num_seqs: 4
+    gpu_memory_utilization: "0.92"
+    kv_cache_dtype: auto
+    speculative_config: {method: mtp, num_speculative_tokens: 3}

@@ -106,3 +106,98 @@
     status_code: 200
   no_log: true
   loop: "{{ vllm_server_instances }}"
+
+- name: Verify pinned vLLM model files
+  ansible.builtin.include_tasks: verify_model.yml
+  loop: "{{ vllm_server_instances }}"
+  loop_control:
+    loop_var: model_instance
+    label: "{{ model_instance.name }}"
+
+- name: Install vLLM content canary
+  ansible.builtin.copy:
+    src: vllm_content_canary.py
+    dest: /usr/local/libexec/vllm-content-canary
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  when: vllm_server_content_canary_enabled | bool
+
+- name: Install vLLM content canary service
+  ansible.builtin.template:
+    src: vllm-content-canary.service.j2
+    dest: "/etc/systemd/system/vllm-content-canary-{{ canary_instance.name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: vllm_server_content_canary_enabled | bool
+  loop: "{{ vllm_server_instances }}"
+  loop_control:
+    loop_var: canary_instance
+    label: "{{ canary_instance.name }}"
+
+- name: Install vLLM content canary timer
+  ansible.builtin.template:
+    src: vllm-content-canary.timer.j2
+    dest: "/etc/systemd/system/vllm-content-canary-{{ canary_instance.name }}.timer"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  when: vllm_server_content_canary_enabled | bool
+  loop: "{{ vllm_server_instances }}"
+  loop_control:
+    loop_var: canary_instance
+    label: "{{ canary_instance.name }}"
+
+- name: Enable vLLM content canary timer
+  ansible.builtin.systemd_service:
+    name: "vllm-content-canary-{{ canary_instance.name }}.timer"
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true
+  when:
+    - vllm_server_content_canary_enabled | bool
+    - not ansible_check_mode
+  loop: "{{ vllm_server_instances }}"
+  loop_control:
+    loop_var: canary_instance
+    label: "{{ canary_instance.name }}"
+
+- name: Disable legacy single-instance vLLM content canary timer
+  ansible.builtin.systemd_service:
+    name: vllm-content-canary.timer
+    enabled: false
+    state: stopped
+  become: true
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Remove legacy single-instance vLLM content canary units
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}"
+    state: absent
+  loop:
+    - vllm-content-canary.service
+    - vllm-content-canary.timer
+  become: true
+
+- name: Disable retired per-instance vLLM content canary timers
+  ansible.builtin.systemd_service:
+    name: "vllm-content-canary-{{ item }}.timer"
+    enabled: false
+    state: stopped
+  loop: "{{ vllm_server_retired_content_canary_instances }}"
+  become: true
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Remove retired per-instance vLLM content canary units
+  ansible.builtin.file:
+    path: "/etc/systemd/system/vllm-content-canary-{{ item.0 }}.{{ item.1 }}"
+    state: absent
+  loop: "{{ vllm_server_retired_content_canary_instances | product(['service', 'timer']) | list }}"
+  become: true

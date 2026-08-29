@@ -1,8 +1,22 @@
 ---
 services:
 {% for instance in vllm_server_instances %}
+{% set instance_image = instance.image | default(vllm_server_image) %}
+{% set instance_model = instance.model | default(vllm_server_model) %}
+{% set instance_revision = instance.model_revision | default(vllm_server_model_revision) %}
+{% set instance_tokenizer = instance.tokenizer | default(vllm_server_tokenizer) %}
+{% set instance_tokenizer_revision = instance.tokenizer_revision | default(vllm_server_tokenizer_revision) %}
+{% set instance_quantization = instance.quantization | default(vllm_server_quantization) %}
+{% set instance_context_size = instance.context_size | default(vllm_server_context_size) %}
+{% set instance_max_num_seqs = instance.max_num_seqs | default(vllm_server_max_num_seqs) %}
+{% set instance_max_num_batched_tokens = instance.max_num_batched_tokens | default(vllm_server_max_num_batched_tokens) %}
+{% set instance_data_parallel_size = instance.data_parallel_size | default(vllm_server_data_parallel_size) %}
+{% set instance_gpu_memory_utilization = instance.gpu_memory_utilization | default(vllm_server_gpu_memory_utilization) %}
+{% set instance_xpu_graph = instance.enable_xpu_graph | default(vllm_server_enable_xpu_graph) %}
+{% set instance_prefix_caching = instance.enable_prefix_caching | default(vllm_server_enable_prefix_caching) %}
+{% set instance_kv_cache_dtype = instance.kv_cache_dtype | default(vllm_server_kv_cache_dtype) %}
   {{ instance.name }}:
-    image: "{{ vllm_server_image }}"
+    image: "{{ instance_image }}"
     container_name: "{{ instance.name }}"
     restart: unless-stopped
     ports:
@@ -13,7 +27,13 @@ services:
     privileged: true
     environment:
       ONEAPI_DEVICE_SELECTOR: "{{ instance.device_selector }}"
-      VLLM_XPU_ENABLE_XPU_GRAPH: "{{ 1 if vllm_server_enable_xpu_graph | bool else 0 }}"
+      VLLM_XPU_ENABLE_XPU_GRAPH: "{{ 1 if instance_xpu_graph | bool else 0 }}"
+{% for key, value in (instance.extra_environment | default({})).items() %}
+      {{ key }}: "{{ value }}"
+{% endfor %}
+{% if instance.attention_backend is defined and instance.attention_backend != 'auto' %}
+      VLLM_ATTENTION_BACKEND: "{{ instance.attention_backend }}"
+{% endif %}
     volumes:
       - "{{ vllm_server_api_key_path }}:/run/secrets/llm_api_key:ro"
       - "{{ vllm_server_hf_cache_dir }}:/root/.cache/huggingface"
@@ -24,17 +44,33 @@ services:
     command:
       - >-
         export VLLM_API_KEY="$$(cat /run/secrets/llm_api_key)";
-        exec vllm serve "{{ vllm_server_model }}"
-        --revision "{{ vllm_server_model_revision }}"
-        --tokenizer "{{ vllm_server_tokenizer }}"
-        --tokenizer-revision "{{ vllm_server_tokenizer_revision }}"
+        exec vllm serve "{{ instance_model }}"
+        --revision "{{ instance_revision }}"
+        --tokenizer "{{ instance_tokenizer }}"
+        --tokenizer-revision "{{ instance_tokenizer_revision }}"
         --served-model-name "{{ vllm_server_served_model_name }}"
         --language-model-only
         --host 0.0.0.0 --port 8080
-        --dtype float16 --quantization "{{ vllm_server_quantization }}"
-        --max-model-len "{{ vllm_server_context_size }}"
-        --max-num-seqs "{{ vllm_server_max_num_seqs }}"
-        --gpu-memory-utilization "{{ vllm_server_gpu_memory_utilization }}"
+        --dtype float16 --quantization "{{ instance_quantization }}"
+        --max-model-len "{{ instance_context_size }}"
+        --max-num-seqs "{{ instance_max_num_seqs }}"
+        --max-num-batched-tokens "{{ instance_max_num_batched_tokens }}"
+{% if instance_data_parallel_size | int > 1 %}
+        --data-parallel-size "{{ instance_data_parallel_size }}"
+        --data-parallel-backend mp
+{% endif %}
+        --gpu-memory-utilization "{{ instance_gpu_memory_utilization }}"
+{% if instance_prefix_caching | bool %}
+        --enable-prefix-caching
+{% else %}
+        --no-enable-prefix-caching
+{% endif %}
+{% if instance_kv_cache_dtype != 'auto' %}
+        --kv-cache-dtype "{{ instance_kv_cache_dtype }}"
+{% endif %}
+{% if instance.speculative_config is defined %}
+        --speculative-config '{{ instance.speculative_config | to_json }}'
+{% endif %}
 {% if instance.tensor_parallel_size | int > 1 %}
         --distributed-executor-backend mp
         --tensor-parallel-size "{{ instance.tensor_parallel_size }}"

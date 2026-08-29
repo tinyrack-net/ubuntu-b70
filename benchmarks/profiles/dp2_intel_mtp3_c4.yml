@@ -1,0 +1,15 @@
+---
+vllm_benchmark_profile: dp2_intel_mtp3_c4
+vllm_server_retired_content_canary_instances:
+  - vllm-server-1
+vllm_server_instances:
+  - name: vllm-server
+    port: 8080
+    device_selector: level_zero:0,1
+    tensor_parallel_size: 1
+    data_parallel_size: 2
+    max_num_seqs: 2
+    max_num_batched_tokens: 2048
+    extra_environment:
+      VLLM_WORKER_MULTIPROC_METHOD: spawn
+    speculative_config: {method: qwen3_5_mtp, num_speculative_tokens: 3}

@@ -54,10 +54,21 @@ class RoleSeparationTests(unittest.TestCase):
     def test_vllm_uses_benchmarked_xpu_throughput_defaults(self):
         defaults = (ROOT / "roles/vllm_server/defaults/main.yml").read_text()
         compose = (ROOT / "roles/vllm_server/templates/compose.yml.j2").read_text()
-        self.assertIn("vllm_server_max_num_seqs: 8", defaults)
+        self.assertIn("vllm_server_max_num_seqs: 4", defaults)
         self.assertIn("vllm_server_enable_xpu_graph: true", defaults)
         self.assertIn("VLLM_XPU_ENABLE_XPU_GRAPH:", compose)
-        self.assertIn("vllm_server_enable_xpu_graph | bool", compose)
+        self.assertIn("instance_xpu_graph | bool", compose)
+
+    def test_vllm_uses_pinned_intel_mtp3_internal_dp2(self):
+        defaults = (ROOT / "roles/vllm_server/defaults/main.yml").read_text()
+        self.assertIn("intel/llm-scaler-vllm:0.21.0-b3.1@sha256:", defaults)
+        self.assertIn("vllm_server_model: RedHatAI/Qwen3.8-27B-INT4", defaults)
+        self.assertIn("num_speculative_tokens: 3", defaults)
+        self.assertIn("device_selector: level_zero:0,1", defaults)
+        self.assertIn("data_parallel_size: 2", defaults)
+        self.assertIn("max_num_seqs: 2", defaults)
+        self.assertNotIn("port: 8081", defaults)
+        self.assertIn("vllm_server_enable_prefix_caching: false", defaults)
 
     def test_vllm_supports_multiple_xpu_instances_and_tensor_parallel(self):
         defaults = (ROOT / "roles/vllm_server/defaults/main.yml").read_text()
@@ -67,6 +78,48 @@ class RoleSeparationTests(unittest.TestCase):
         self.assertIn("for instance in vllm_server_instances", compose)
         self.assertIn("--tensor-parallel-size", compose)
         self.assertIn('loop: "{{ vllm_server_instances }}"', tasks)
+
+    def test_vllm_instances_can_override_model_and_tuning(self):
+        compose = (ROOT / "roles" / "vllm_server" / "templates" / "compose.yml.j2").read_text()
+        for key in (
+            "instance.model",
+            "instance.image",
+            "instance.model_revision",
+            "instance.quantization",
+            "instance.max_num_seqs",
+            "instance.max_num_batched_tokens",
+            "instance.data_parallel_size",
+            "instance.kv_cache_dtype",
+            "instance.enable_prefix_caching",
+            "instance.attention_backend",
+            "instance.speculative_config",
+        ):
+            self.assertIn(key, compose)
+        self.assertIn("--data-parallel-size", compose)
+        self.assertIn("--data-parallel-backend mp", compose)
+
+    def test_vllm_verifies_pinned_model_files(self):
+        defaults = (ROOT / "roles" / "vllm_server" / "defaults" / "main.yml").read_text()
+        tasks = role_text("vllm_server")
+        self.assertIn("vllm_server_model_files:", defaults)
+        self.assertIn("sha256sum", tasks)
+        self.assertIn("vllm_server_model_files", tasks)
+
+    def test_intel_compute_runtime_is_pinned_with_checksums(self):
+        defaults = (ROOT / "roles" / "intel_gpu" / "defaults" / "main.yml").read_text()
+        tasks = role_text("intel_gpu")
+        self.assertIn("intel_gpu_compute_runtime_version: 26.18.38308.1-0", defaults)
+        self.assertEqual(defaults.count("sha256:"), 6)
+        self.assertIn("checksum: \"sha256:{{ item.sha256 }}\"", tasks)
+        self.assertIn("intel_gpu_level_zero_version.stdout == intel_gpu_compute_runtime_version", tasks)
+
+    def test_vllm_content_canary_restarts_only_after_repeated_failures(self):
+        defaults = (ROOT / "roles" / "vllm_server" / "defaults" / "main.yml").read_text()
+        canary = (ROOT / "roles" / "vllm_server" / "files" / "vllm_content_canary.py").read_text()
+        self.assertIn("vllm_server_content_canary_failure_threshold: 2", defaults)
+        self.assertIn('subprocess.run(["docker", "restart", args.container]', canary)
+        self.assertIn("failures >= args.failure_threshold", canary)
+        self.assertIn("canary_instance.name", role_text("vllm_server"))
 
 
 if __name__ == "__main__":

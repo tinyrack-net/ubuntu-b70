@@ -26,6 +26,7 @@ PROMPT_CASES = (128, 512, 2048)
 GENERATION_CASES = (128, 256)
 REPETITIONS = 5
 CONCURRENCY_REPETITIONS = 3
+CONCURRENCY_LEVELS = (1, 2, 4)
 
 
 class BenchmarkError(RuntimeError):
@@ -72,6 +73,17 @@ class Client:
                 return json.loads(response.read())
         except (urllib.error.URLError, json.JSONDecodeError) as error:
             raise BenchmarkError(f"{method} {path} failed: {error}") from error
+
+    def text(self, path: str) -> str:
+        req = urllib.request.Request(
+            self.base_url + path,
+            headers={"Authorization": f"Bearer {self.key}"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                return response.read().decode()
+        except urllib.error.URLError as error:
+            raise BenchmarkError(f"GET {path} failed: {error}") from error
 
     def stream(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         wire = {key: value for key, value in payload.items() if not key.startswith("_")}
@@ -136,6 +148,19 @@ def stats(values: list[float]) -> dict[str, float]:
         "mean": statistics.mean(values), "median": statistics.median(values),
         "p95": percentile(values, 95), "min": min(values), "max": max(values),
     }
+
+
+def parse_prometheus(payload: str) -> dict[str, float]:
+    metrics: dict[str, float] = {}
+    for line in payload.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        match = re.fullmatch(r"([^\s{]+)(?:\{[^}]*\})?\s+([-+0-9.eE]+)(?:\s+\d+)?", line)
+        if not match or "spec" not in match.group(1).lower():
+            continue
+        name, value = match.groups()
+        metrics[name] = metrics.get(name, 0.0) + float(value)
+    return metrics
 
 
 def container_state(name: str) -> dict[str, Any]:
@@ -207,25 +232,56 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def benchmark_environment(profile: str, inv: dict[str, Any]) -> dict[str, Any]:
+def benchmark_environment(profile: str, inv: dict[str, Any], containers: set[str] | None = None) -> dict[str, Any]:
     values = dict(inv)
     instances = values.get("vllm_server_instances", [])
+    if containers:
+        instances = [item for item in instances if item["name"] in containers]
     tensor_parallel = [int(item.get("tensor_parallel_size", 1)) for item in instances]
-    topology = "tensor_parallel" if any(size > 1 for size in tensor_parallel) else (
+    data_parallel = [int(item.get("data_parallel_size", 1)) for item in instances]
+    topology = "data_parallel" if any(size > 1 for size in data_parallel) else (
+        "tensor_parallel" if any(size > 1 for size in tensor_parallel) else (
         "replica" if len(instances) > 1 else "single_gpu"
+        )
     )
     return {
         "topology": topology,
-        "gpu_count": sum(tensor_parallel),
-        "xpu_graph_enabled": bool(values.get("vllm_server_enable_xpu_graph", True)),
-        "max_num_seqs": int(values.get("vllm_server_max_num_seqs", 1)),
-        "gpu_memory_utilization": float(values.get("vllm_server_gpu_memory_utilization", 0)),
+        "gpu_count": sum(tp * dp for tp, dp in zip(tensor_parallel, data_parallel, strict=True)),
+        "xpu_graph_enabled": bool(instances[0].get(
+            "enable_xpu_graph", values.get("vllm_server_enable_xpu_graph", True)
+        )),
+        "max_num_seqs": int(instances[0].get("max_num_seqs", values.get("vllm_server_max_num_seqs", 1))),
+        "max_num_batched_tokens": int(instances[0].get(
+            "max_num_batched_tokens", values.get("vllm_server_max_num_batched_tokens", 0)
+        )),
+        "prefix_caching_enabled": bool(instances[0].get(
+            "enable_prefix_caching", values.get("vllm_server_enable_prefix_caching", True)
+        )),
+        "gpu_memory_utilization": float(instances[0].get(
+            "gpu_memory_utilization", values.get("vllm_server_gpu_memory_utilization", 0)
+        )),
         "instances": [
             {
                 "name": item["name"],
                 "port": int(item["port"]),
                 "device_selector": item["device_selector"],
                 "tensor_parallel_size": int(item.get("tensor_parallel_size", 1)),
+                "data_parallel_size": int(item.get("data_parallel_size", 1)),
+                "image": item.get("image", values.get("vllm_server_image")),
+                "model": item.get("model", values.get("vllm_server_model")),
+                "model_revision": item.get("model_revision", values.get("vllm_server_model_revision")),
+                "kv_cache_dtype": item.get("kv_cache_dtype", values.get("vllm_server_kv_cache_dtype", "auto")),
+                "max_num_batched_tokens": int(item.get(
+                    "max_num_batched_tokens", values.get("vllm_server_max_num_batched_tokens", 0)
+                )),
+                "prefix_caching_enabled": bool(item.get(
+                    "enable_prefix_caching", values.get("vllm_server_enable_prefix_caching", True)
+                )),
+                "xpu_graph_enabled": bool(item.get(
+                    "enable_xpu_graph", values.get("vllm_server_enable_xpu_graph", True)
+                )),
+                "attention_backend": item.get("attention_backend", "auto"),
+                "speculative_config": item.get("speculative_config"),
             }
             for item in instances
         ],
@@ -233,7 +289,7 @@ def benchmark_environment(profile: str, inv: dict[str, Any]) -> dict[str, Any]:
             "prompt_token_cases": list(PROMPT_CASES),
             "generation_token_cases": list(GENERATION_CASES),
             "single_request_repetitions": REPETITIONS,
-            "concurrency_levels": [1, 2, 4, 8, 16],
+            "concurrency_levels": list(CONCURRENCY_LEVELS),
             "concurrency_repetitions": CONCURRENCY_REPETITIONS,
             "concurrency_prompt_tokens": 512,
             "concurrency_output_tokens": 256,
@@ -260,7 +316,12 @@ def run() -> int:
     model = models[0]["id"]
     engine = inv.get("llm_runtime_engine", "vllm")
     containers = [target["container"] for target in targets]
+    selected_instance = next(
+        (item for item in inv.get("vllm_server_instances", []) if item["name"] == containers[0]),
+        {},
+    )
     before = {container: container_state(container) for container in containers}
+    spec_before = parse_prometheus(client.text("/metrics"))
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     corpus = ("benchmark alpha beta gamma delta epsilon zeta eta theta " * 6000)
     try:
@@ -305,7 +366,7 @@ def run() -> int:
             nonce += 1
 
     concurrency_results = []
-    for concurrency in (1, 2, 4, 8, 16):
+    for concurrency in CONCURRENCY_LEVELS:
         count = concurrency * 5
         rows = []
         output_rates = []
@@ -338,19 +399,25 @@ def run() -> int:
         })
 
     after = {container: container_state(container) for container in containers}
+    spec_after = parse_prometheus(client.text("/metrics"))
+    spec_delta = {
+        name: spec_after.get(name, 0.0) - spec_before.get(name, 0.0)
+        for name in spec_after.keys() | spec_before.keys()
+    }
     for container in containers:
         if (after[container]["restart_count"] != before[container]["restart_count"]
                 or after[container]["oom_killed"]):
             raise BenchmarkError(f"{container} restarted or was OOM-killed")
     result = {"metadata": {"run_id": run_id, "engine": engine, "profile": args.profile,
-                            "environment": benchmark_environment(args.profile, inv),
+                            "environment": benchmark_environment(args.profile, inv, set(containers)),
                             "targets": [{"port": target["port"], "container": target["container"]}
                                         for target in targets],
                             "model": model,
-                            "context_size": inv.get("vllm_server_context_size", inv.get("llama_server_context_size")),
+                            "context_size": selected_instance.get("context_size", inv.get("vllm_server_context_size", inv.get("llama_server_context_size"))),
                             "image": inv.get("vllm_server_image", inv.get("llama_server_intel_image")),
-                            "model_revision": inv.get("vllm_server_model_revision", inv.get("llama_server_model_revision")),
-                            "container_before": before, "container_after": after},
+                            "model_revision": selected_instance.get("model_revision", inv.get("vllm_server_model_revision", inv.get("llama_server_model_revision"))),
+                            "container_before": before, "container_after": after,
+                            "speculative_metrics": {"before": spec_before, "after": spec_after, "delta": spec_delta}},
               "summary": summarize(samples), "concurrency": concurrency_results, "samples": samples}
     serialized = json.dumps(result, indent=2, sort_keys=True)
     if key in serialized:

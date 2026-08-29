@@ -1,0 +1,30 @@
+{
+  "concurrency": 4,
+  "container_after": {
+    "health": null,
+    "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "oom_killed": false,
+    "restart_count": 0,
+    "status": "running"
+  },
+  "container_before": {
+    "health": null,
+    "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "oom_killed": false,
+    "restart_count": 0,
+    "status": "running"
+  },
+  "counts": {
+    "bad_content": 0,
+    "errors": 0,
+    "ok": 187
+  },
+  "duration_s": 300,
+  "latency_ms": {
+    "max": 20314.517930994043,
+    "median": 8160.7667630014475
+  },
+  "profile": "c1_intel_mtp3_c4",
+  "timestamp": "2026-08-28T16:53:02.970809+00:00",
+  "tool_call_ok": true
+}

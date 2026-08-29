@@ -1,0 +1,11 @@
+{
+  "hashes": {
+    "code": "bac5240d860faadc3e4785277b7251bc1c7e51bc21b34b62d0128809a84c189f",
+    "korean": "79f1a2e8de58ce73929c69e40d940e633c9f8b922251b367214d874858067278",
+    "marker": "a3ff753f02159e353033105828ade4acc027bf7944f8f2bcd63a5fb544e96068",
+    "reasoning": "b8942a68f5c130675f693907e3e2a66983d470d1e3d7e3042ce34b85d8676067"
+  },
+  "profile": "dp2_intel_mtp3_c4",
+  "seed": 0,
+  "temperature": 0
+}

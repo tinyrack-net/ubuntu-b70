@@ -1,0 +1,30 @@
+{
+  "concurrency": 4,
+  "container_after": {
+    "health": null,
+    "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "oom_killed": false,
+    "restart_count": 0,
+    "status": "running"
+  },
+  "container_before": {
+    "health": null,
+    "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "oom_killed": false,
+    "restart_count": 0,
+    "status": "running"
+  },
+  "counts": {
+    "bad_content": 0,
+    "errors": 0,
+    "ok": 38
+  },
+  "duration_s": 60,
+  "latency_ms": {
+    "max": 14041.880584991304,
+    "median": 8287.669366000046
+  },
+  "profile": "inventory",
+  "timestamp": "2026-08-29T00:54:31.663896+00:00",
+  "tool_call_ok": true
+}
