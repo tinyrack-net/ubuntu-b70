@@ -8,6 +8,7 @@ temperature: 0
 ignore_eos: true
 save_detailed: true
 warmups_per_concurrency: 1
+preconditioning_requests_per_concurrency: 5
 metric_percentiles: [50, 90, 95, 99]
 percentile_metrics: [ttft, tpot, itl, e2el]
 output_tps_cv_limit_percent: 5.0

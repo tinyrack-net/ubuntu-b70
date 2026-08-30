@@ -27,6 +27,8 @@
           {{ lookup('file', root ~ '/playbooks/tasks/restore_vllm_benchmark.yml') }}
         benchmark_round_tasks: >-
           {{ lookup('file', root ~ '/playbooks/tasks/run_vllm_benchmark_round.yml') }}
+        benchmark_precondition_tasks: >-
+          {{ lookup('file', root ~ '/playbooks/tasks/precondition_vllm_benchmark_shape.yml') }}
         benchmark_suite: "{{ lookup('file', root ~ '/benchmarks/suite.yml') | from_yaml }}"
 
     - name: Read raw Vault ciphertext
@@ -156,12 +158,15 @@
           - benchmark_suite.seed == 0
           - benchmark_suite.rounds == 3
           - benchmark_suite.requests_per_concurrency == 5
+          - benchmark_suite.preconditioning_requests_per_concurrency == 5
           - benchmark_suite.concurrency_levels == [1, 2, 4, 8]
           - benchmark_suite.output_tps_cv_limit_percent == 5.0
           - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128']
           - "'vllm bench serve' in benchmark_round_tasks"
           - "'--save-detailed' in benchmark_round_tasks"
           - "'--num-warmups' in benchmark_round_tasks"
+          - "'--num-warmups 0' in benchmark_precondition_tasks"
+          - "'--disable-tqdm' in benchmark_precondition_tasks"
           - "'benchmark_require_clean_git: true' in benchmark_playbook"
           - "'127.0.0.1' in benchmark_playbook"
           - "'tasks/restore_vllm_benchmark.yml' in benchmark_playbook"

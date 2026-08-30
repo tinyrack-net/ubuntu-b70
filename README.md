@@ -54,8 +54,9 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 컨테이너에 포함된 표준 `vllm bench serve`로 고정된 random dataset의 prompt 처리,
 token generation, TTFT, TPOT, ITL, E2E latency와 aggregate throughput을 측정한다.
 표준 suite는 [`benchmarks/suite.yml`](benchmarks/suite.yml)에 있으며 seed, 입력·출력 길이,
-동시성, 반복 수와 percentile을 모두 고정한다. API 키는 컨테이너의 secret 파일에서만
-읽으며 결과에 저장하지 않는다.
+동시성, 반복 수와 percentile을 모두 고정한다. 각 workload·동시성 shape는 DP rank와
+실행 경로를 준비하기 위해 측정 전에 한 번 선행 실행한다. API 키는 컨테이너의 secret
+파일에서만 읽으며 결과에 저장하지 않는다.
 
 ```bash
 make benchmark-api

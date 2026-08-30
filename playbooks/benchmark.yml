@@ -23,6 +23,7 @@
           - benchmark_suite.ignore_eos | bool
           - benchmark_suite.save_detailed | bool
           - benchmark_suite.warmups_per_concurrency > 0
+          - benchmark_suite.preconditioning_requests_per_concurrency == 5
           - benchmark_suite.metric_percentiles == [50, 90, 95, 99]
           - benchmark_suite.percentile_metrics == ['ttft', 'tpot', 'itl', 'e2el']
           - benchmark_suite.output_tps_cv_limit_percent == 5.0
@@ -334,6 +335,13 @@
           failed_when: false
           become: true
 
+        - name: Precondition every workload and concurrency shape
+          ansible.builtin.include_tasks: tasks/precondition_vllm_benchmark_shape.yml
+          loop: "{{ benchmark_suite.cases | product(benchmark_suite.concurrency_levels) | list }}"
+          loop_control:
+            loop_var: benchmark_shape
+            label: "{{ benchmark_shape.0.id }}-c{{ benchmark_shape.1 }}"
+
         - name: Run, validate, and fetch every canonical benchmark round
           ansible.builtin.include_tasks: tasks/run_vllm_benchmark_round.yml
           loop: "{{ benchmark_runs }}"
@@ -473,13 +481,13 @@
             suite_sha256: "{{ benchmark_suite_sha256 }}"
           target:
             inventory_host: "{{ inventory_hostname }}"
-            os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
-            kernel: "{{ ansible_kernel }}"
-            architecture: "{{ ansible_architecture }}"
-            cpu_model: "{{ ansible_processor | default([]) | unique | list }}"
-            cpu_vcpus: "{{ ansible_processor_vcpus }}"
-            memory_mb: "{{ ansible_memtotal_mb }}"
-            load_average: "{{ ansible_loadavg | default({}) }}"
+            os: "{{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}"
+            kernel: "{{ ansible_facts.kernel }}"
+            architecture: "{{ ansible_facts.architecture }}"
+            cpu_model: "{{ ansible_facts.processor | default([]) | unique | list }}"
+            cpu_vcpus: "{{ ansible_facts.processor_vcpus }}"
+            memory_mb: "{{ ansible_facts.memtotal_mb }}"
+            load_average: "{{ ansible_facts.loadavg | default({}) }}"
             docker_version: "{{ benchmark_docker_version.stdout | default(null) }}"
             level_zero_version: "{{ benchmark_level_zero_version.stdout | default(null) }}"
             gpu_pci: "{{ benchmark_gpu_pci.stdout_lines | default([]) }}"
