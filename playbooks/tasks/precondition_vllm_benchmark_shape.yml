@@ -1,4 +1,47 @@
 ---
+- name: Build the public preconditioning benchmark argv
+  ansible.builtin.set_fact:
+    benchmark_public_argv:
+      - vllm
+      - bench
+      - serve
+      - --backend
+      - openai-chat
+      - --base-url
+      - http://127.0.0.1:8080
+      - --endpoint
+      - /v1/chat/completions
+      - --model
+      - "{{ benchmark_model }}"
+      - --tokenizer
+      - "{{ benchmark_tokenizer }}"
+      - --dataset-name
+      - random
+      - --random-input-len
+      - "{{ benchmark_shape.0.input_len | string }}"
+      - --random-output-len
+      - "{{ benchmark_shape.0.output_len | string }}"
+      - --random-range-ratio
+      - "0"
+      - --num-prompts
+      - >-
+        {{
+          (benchmark_shape.1 | int)
+          * (benchmark_suite.preconditioning_requests_per_concurrency | int)
+        }}
+      - --num-warmups
+      - "0"
+      - --max-concurrency
+      - "{{ benchmark_shape.1 | string }}"
+      - --request-rate
+      - "{{ benchmark_suite.request_rate }}"
+      - --seed
+      - "{{ benchmark_suite.seed | string }}"
+      - --ignore-eos
+      - --temperature
+      - "{{ benchmark_suite.temperature | string }}"
+      - --disable-tqdm
+
 - name: Precondition the selected workload and concurrency shape
   ansible.builtin.command:
     argv:
@@ -9,26 +52,19 @@
       - -lc
       - >-
         export OPENAI_API_KEY="$(cat /run/secrets/llm_api_key)";
-        exec vllm bench serve
-        --backend openai-chat
-        --base-url http://127.0.0.1:8080
-        --endpoint /v1/chat/completions
-        --model {{ benchmark_model | quote }}
-        --tokenizer {{ benchmark_tokenizer | quote }}
-        --dataset-name random
-        --random-input-len {{ benchmark_shape.0.input_len | int }}
-        --random-output-len {{ benchmark_shape.0.output_len | int }}
-        --random-range-ratio 0
-        --num-prompts {{
-          (benchmark_shape.1 | int)
-          * (benchmark_suite.preconditioning_requests_per_concurrency | int)
-        }}
-        --num-warmups 0
-        --max-concurrency {{ benchmark_shape.1 | int }}
-        --request-rate {{ benchmark_suite.request_rate | quote }}
-        --seed {{ benchmark_suite.seed | int }}
-        --ignore-eos
-        --temperature {{ benchmark_suite.temperature | int }}
-        --disable-tqdm
+        exec {{ benchmark_public_argv | map('quote') | join(' ') }}
   changed_when: false
   become: true
+
+- name: Record the preconditioning benchmark argv
+  ansible.builtin.set_fact:
+    benchmark_invocations: >-
+      {{
+        benchmark_invocations
+        + [{
+          'phase': 'precondition',
+          'case_id': benchmark_shape.0.id,
+          'concurrency': benchmark_shape.1 | int,
+          'argv': benchmark_public_argv
+        }]
+      }}

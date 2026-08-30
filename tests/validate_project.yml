@@ -162,10 +162,12 @@
           - benchmark_suite.concurrency_levels == [1, 2, 4, 8]
           - benchmark_suite.output_tps_cv_limit_percent == 5.0
           - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128']
-          - "'vllm bench serve' in benchmark_round_tasks"
+          - "benchmark_round_tasks.count('      - vllm') == 1"
+          - "benchmark_round_tasks.count('      - bench') == 1"
+          - "benchmark_round_tasks.count('      - serve') == 1"
           - "'--save-detailed' in benchmark_round_tasks"
           - "'--num-warmups' in benchmark_round_tasks"
-          - "'--num-warmups 0' in benchmark_precondition_tasks"
+          - "benchmark_precondition_tasks.count('      - --num-warmups') == 1"
           - "'--disable-tqdm' in benchmark_precondition_tasks"
           - "'benchmark_require_clean_git: true' in benchmark_playbook"
           - "'127.0.0.1' in benchmark_playbook"
@@ -175,6 +177,10 @@
           - "'benchmark_production_compose' in benchmark_restore_tasks"
           - "'benchmark_restored' in benchmark_restore_tasks"
           - "'/run/secrets/llm_api_key' in benchmark_round_tasks"
+          - "'benchmark_invocations' in benchmark_playbook"
+          - "'benchmark_public_argv' in benchmark_round_tasks"
+          - "'benchmark_public_argv' in benchmark_precondition_tasks"
+          - "\"map('regex_replace', '^.*; exec ', '')\" in benchmark_playbook"
           - "'Config.Env' not in benchmark_playbook"
 
     - name: Exercise the objective jq aggregation

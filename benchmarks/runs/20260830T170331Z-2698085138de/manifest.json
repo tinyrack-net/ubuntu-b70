@@ -1,0 +1,292 @@
+{
+    "benchmark": {
+        "command": "vllm bench serve",
+        "raw_results": [
+            {
+                "file": "pp128-tg256-c1-r1.json",
+                "sha256": "d59671689b4ed4515fb617d41aa62a71cee8e33f8c6fd14ad3c444b24f2cfba7"
+            },
+            {
+                "file": "pp128-tg256-c1-r2.json",
+                "sha256": "27e6e8f5eb6e84cbaaaeb170069ca0f101a8cc2d8b43f2e401026af8e2a5971d"
+            },
+            {
+                "file": "pp128-tg256-c1-r3.json",
+                "sha256": "325ca2f81cbaae6e3a664ce5402adf841422f98e88a774272d7d2a600179fb88"
+            },
+            {
+                "file": "pp128-tg256-c2-r1.json",
+                "sha256": "33de03e0719f4714d7cb114f252396f833a9ffeeb8d1143470a714ce2b81fc87"
+            },
+            {
+                "file": "pp128-tg256-c2-r2.json",
+                "sha256": "083a24eed2fe5141734caf0f50f656207a6e91c06748afd5ae3dab9be880732d"
+            },
+            {
+                "file": "pp128-tg256-c2-r3.json",
+                "sha256": "abc8a5f5e4e3954018941d4469008ae89c2e52117154312e478aa4c5e5024e36"
+            },
+            {
+                "file": "pp128-tg256-c4-r1.json",
+                "sha256": "0efe8c81fa1f3f17f2791f4fd65cce14c01ca97411b71a5c7157529390473cda"
+            },
+            {
+                "file": "pp128-tg256-c4-r2.json",
+                "sha256": "7b1a175d1c4ee1ffe21e1f941b8eafba98191323d38993a5d65a32782fb7408f"
+            },
+            {
+                "file": "pp128-tg256-c4-r3.json",
+                "sha256": "e5cf117ecf8b142110be6514b9ff8f5746ac9190578bdf328299b8e5741e8aa4"
+            },
+            {
+                "file": "pp128-tg256-c8-r1.json",
+                "sha256": "9921acbf2feb66432a350399d8b8d0822a53e6debdd4a15e671ed46f4f7b0aeb"
+            },
+            {
+                "file": "pp128-tg256-c8-r2.json",
+                "sha256": "1b03226191d8345092bd56be8a32bd49e85cf4bac95e208934a7460bdfef18f7"
+            },
+            {
+                "file": "pp128-tg256-c8-r3.json",
+                "sha256": "720c0b0d98226b4919f650db9859001abbd6b2198f5774f57df9a87a76aa1966"
+            },
+            {
+                "file": "pp512-tg256-c1-r1.json",
+                "sha256": "18408678f3b9edc6fc3a1f759420f1bf5f4b7ee1b5451c065dded8003e5cd7d6"
+            },
+            {
+                "file": "pp512-tg256-c1-r2.json",
+                "sha256": "4ca1b42fca1237bb3346d5ae22c9c60ccb3d3e221a0246d775d006d25c5566c8"
+            },
+            {
+                "file": "pp512-tg256-c1-r3.json",
+                "sha256": "0e0609ebd9b6d1a05bfd762b9f8936e49930bc051e87e4a7dcd4bccd4aca0289"
+            },
+            {
+                "file": "pp512-tg256-c2-r1.json",
+                "sha256": "3af383885dd60c0f9b9558cd8b8fea16c89435a8aea613c0265f1561cc17891b"
+            },
+            {
+                "file": "pp512-tg256-c2-r2.json",
+                "sha256": "02fc39a39814f561add7588cdc96bdd5b2cbfec64260994b2ffda31b5253dbe7"
+            },
+            {
+                "file": "pp512-tg256-c2-r3.json",
+                "sha256": "7a6c0704c62da73fa620320a7a6fcfe8b6f1c039fa015829b1a620ac4a11a119"
+            },
+            {
+                "file": "pp512-tg256-c4-r1.json",
+                "sha256": "f9e6d43f470ae46363e6de4f9f82dbd21030704b7762961979e3e89d2188792e"
+            },
+            {
+                "file": "pp512-tg256-c4-r2.json",
+                "sha256": "86196faeda9ac28c3f852e091035ce25bc249a224e17493d4bbbe81c754bd5ac"
+            },
+            {
+                "file": "pp512-tg256-c4-r3.json",
+                "sha256": "e50d35b2a0eca0f26afc9886b40c728ebf3b40748fdd8b88cf388ae5df53adca"
+            },
+            {
+                "file": "pp512-tg256-c8-r1.json",
+                "sha256": "97b6183de7841bef0616166eeab2203d86db87172e420889a0944e562d3282de"
+            },
+            {
+                "file": "pp512-tg256-c8-r2.json",
+                "sha256": "3d26ee5fdf33b4738701fc1c55b974bab0a95d3aef40f326f1b5442ee0aaabab"
+            },
+            {
+                "file": "pp512-tg256-c8-r3.json",
+                "sha256": "3ea00854e9c1e1e268066c88efdd486d3c90e1e15e4bd0c35be43fd401d193dc"
+            },
+            {
+                "file": "pp2048-tg128-c1-r1.json",
+                "sha256": "50337279620c1d1127fbc4c69f765b2843aca11ef711aa899750d417115ba9b7"
+            },
+            {
+                "file": "pp2048-tg128-c1-r2.json",
+                "sha256": "ada7bcbd5b2b5e05ea0d130d6822f6559ba02fb8fa7c5616a96a7737f1c741dd"
+            },
+            {
+                "file": "pp2048-tg128-c1-r3.json",
+                "sha256": "a94068834b64ecf9f79c0ab9fc14939f14994437daeb69111d5cb8c4468e0a7c"
+            },
+            {
+                "file": "pp2048-tg128-c2-r1.json",
+                "sha256": "77532db2ea79f6a330b6af345d0b558768b7e6234bebbee82050de9fe29bf188"
+            },
+            {
+                "file": "pp2048-tg128-c2-r2.json",
+                "sha256": "8f90be7df9498737888a9cc16a427a861f6424309b11b78653ec665cec573a8e"
+            },
+            {
+                "file": "pp2048-tg128-c2-r3.json",
+                "sha256": "b16179b094f0de069e9ed83f4aba0d3e2467c28573205749af55d65937ffe29a"
+            },
+            {
+                "file": "pp2048-tg128-c4-r1.json",
+                "sha256": "50f02184f9a706808d18e0e07f6be25db9d31dea39c546c7923aff7a325e65ff"
+            },
+            {
+                "file": "pp2048-tg128-c4-r2.json",
+                "sha256": "5892eeff91c3e6ecaeda573a2b279810edcf4eea5f6467294aeccc595560adfd"
+            },
+            {
+                "file": "pp2048-tg128-c4-r3.json",
+                "sha256": "67ab68ee768ef8c50e21ad021583c718b9d4c19b8dff1ef390340eb689eef084"
+            },
+            {
+                "file": "pp2048-tg128-c8-r1.json",
+                "sha256": "a3ae94da36c55eb14226c6fff8d91ce21b93fec730d5f3a21b3af033e7568ee8"
+            },
+            {
+                "file": "pp2048-tg128-c8-r2.json",
+                "sha256": "26299e8a44bfbe162d50002b7166ee4c476059fda1f2c65d1acbc7bb51d6b616"
+            },
+            {
+                "file": "pp2048-tg128-c8-r3.json",
+                "sha256": "9eb063e377653198537855c3240d5784c39dd074abca8cce76eedc1aa9fcb983"
+            }
+        ],
+        "suite": {
+            "cases": [
+                {
+                    "id": "pp128-tg256",
+                    "input_len": 128,
+                    "output_len": 256
+                },
+                {
+                    "id": "pp512-tg256",
+                    "input_len": 512,
+                    "output_len": 256
+                },
+                {
+                    "id": "pp2048-tg128",
+                    "input_len": 2048,
+                    "output_len": 128
+                }
+            ],
+            "concurrency_levels": [
+                1,
+                2,
+                4,
+                8
+            ],
+            "ignore_eos": true,
+            "metric_percentiles": [
+                50,
+                90,
+                95,
+                99
+            ],
+            "output_tps_cv_limit_percent": 5.0,
+            "percentile_metrics": [
+                "ttft",
+                "tpot",
+                "itl",
+                "e2el"
+            ],
+            "preconditioning_requests_per_concurrency": 5,
+            "request_rate": "inf",
+            "requests_per_concurrency": 5,
+            "rounds": 3,
+            "save_detailed": true,
+            "schema_version": 1,
+            "seed": 0,
+            "temperature": 0,
+            "warmups_per_concurrency": 1
+        }
+    },
+    "completed_at_utc": "2026-08-30T17:49:55Z",
+    "isolation": "loopback-recreated-container",
+    "repository": {
+        "clean": true,
+        "commit": "2698085138de8c33243dfdc13d0d2afc92e65b0c",
+        "suite_sha256": "902b8fca1d9f4e758bcb86d3e62868593d8107c118e2f0ea02c39857104e9257"
+    },
+    "restored": true,
+    "run_id": "20260830T170331Z-2698085138de",
+    "runtime": {
+        "container": {
+            "command": [
+                "export VLLM_API_KEY=\"$(cat /run/secrets/llm_api_key)\"; exec vllm serve \"RedHatAI/Qwen3.8-27B-INT4\" --revision \"2fb0debc365fb6c1683d7d3ad7722470919627a8\" --tokenizer \"Qwen/Qwen3.8-27B\" --tokenizer-revision \"1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0\" --served-model-name \"Qwen3.8-27B\" --language-model-only --host 0.0.0.0 --port 8080 --dtype float16 --quantization \"compressed-tensors\" --max-model-len \"118784\" --max-num-seqs \"4\" --max-num-batched-tokens \"2048\" --data-parallel-size \"2\" --data-parallel-backend mp --gpu-memory-utilization \"0.92\" --no-enable-prefix-caching --speculative-config '{\"method\": \"qwen3_5_mtp\", \"num_speculative_tokens\": 3}' --enable-auto-tool-choice --tool-call-parser \"qwen3_xml\" --reasoning-parser \"qwen3\" --generation-config vllm"
+            ],
+            "created": "2026-08-30T17:03:35.426871186Z",
+            "devices": [
+                {
+                    "CgroupPermissions": "rwm",
+                    "PathInContainer": "/dev/dri",
+                    "PathOnHost": "/dev/dri"
+                }
+            ],
+            "entrypoint": [
+                "/bin/bash",
+                "-lc"
+            ],
+            "id": "3106221f221c50d08138bd5fd362bd99518ff6352e2cad2bb4151a00ab342032",
+            "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+            "image_ref": "intel/llm-scaler-vllm:0.21.0-b3.1@sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+            "ipc_mode": "host",
+            "privileged": true,
+            "restart_count": 0
+        },
+        "model": {
+            "files": [
+                "f078f51aed0c1dba613c1759487004ee06aba1a290606b6be125f59ab710959e  /root/.cache/huggingface/hub/models--RedHatAI--Qwen3.8-27B-INT4/snapshots/2fb0debc365fb6c1683d7d3ad7722470919627a8/model.safetensors",
+                "1d8268aa85ace093a561e3e7b63b9d390dac1cd55a90cd55b5ec509c3c9da9fe  /root/.cache/huggingface/hub/models--RedHatAI--Qwen3.8-27B-INT4/snapshots/2fb0debc365fb6c1683d7d3ad7722470919627a8/model_mtp.safetensors"
+            ],
+            "id": "RedHatAI/Qwen3.8-27B-INT4",
+            "revision": "2fb0debc365fb6c1683d7d3ad7722470919627a8",
+            "tokenizer": "Qwen/Qwen3.8-27B",
+            "tokenizer_revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
+        },
+        "production_compose_sha256": "7f4db18ecedc76bb1ad259dd81387363dc834cec6576669b7f76428613fa5308",
+        "versions": [
+            "0.21.1.dev0+gad7125a43.d20260812.xpu",
+            "2.11.0+xpu"
+        ]
+    },
+    "schema_version": 1,
+    "started_at_utc": "20260830T170331Z",
+    "status": "failed",
+    "target": {
+        "architecture": "x86_64",
+        "cpu_model": [
+            "0",
+            "AuthenticAMD",
+            "AMD Ryzen 7 5700X 8-Core Processor",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7"
+        ],
+        "cpu_vcpus": 8,
+        "docker_version": "29.7.2",
+        "gpu_pci": [
+            "0000:01:00.0 VGA compatible controller [0300]: Intel Corporation Battlemage G31 [Intel Graphics] [8086:e223]",
+            "\tSubsystem: Intel Corporation Device [8086:1701]",
+            "\tKernel driver in use: xe",
+            "\tKernel modules: xe",
+            "0000:02:00.0 VGA compatible controller [0300]: Intel Corporation Battlemage G31 [Intel Graphics] [8086:e223]",
+            "\tSubsystem: Intel Corporation Device [8086:1701]",
+            "\tKernel driver in use: xe",
+            "\tKernel modules: xe"
+        ],
+        "inventory_host": "ubuntu-gpu",
+        "kernel": "7.0.0-30-generic",
+        "level_zero_version": "",
+        "load_average": {
+            "15m": 2.58349609375,
+            "1m": 0.86669921875,
+            "5m": 2.15380859375
+        },
+        "memory_mb": 61927,
+        "os": "Ubuntu 26.04"
+    },
+    "telemetry": {
+        "after": "",
+        "before": ""
+    }
+}

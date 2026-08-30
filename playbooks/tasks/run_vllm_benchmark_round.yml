@@ -1,4 +1,65 @@
 ---
+- name: Build the public measured benchmark argv
+  ansible.builtin.set_fact:
+    benchmark_public_argv:
+      - vllm
+      - bench
+      - serve
+      - --backend
+      - openai-chat
+      - --base-url
+      - http://127.0.0.1:8080
+      - --endpoint
+      - /v1/chat/completions
+      - --model
+      - "{{ benchmark_model }}"
+      - --tokenizer
+      - "{{ benchmark_tokenizer }}"
+      - --dataset-name
+      - random
+      - --random-input-len
+      - "{{ benchmark_run.case.input_len | string }}"
+      - --random-output-len
+      - "{{ benchmark_run.case.output_len | string }}"
+      - --random-range-ratio
+      - "0"
+      - --num-prompts
+      - "{{ benchmark_run.num_prompts | string }}"
+      - --num-warmups
+      - "{{ benchmark_run.num_warmups | string }}"
+      - --max-concurrency
+      - "{{ benchmark_run.concurrency | string }}"
+      - --request-rate
+      - "{{ benchmark_suite.request_rate }}"
+      - --seed
+      - "{{ benchmark_suite.seed | string }}"
+      - --ignore-eos
+      - --temperature
+      - "{{ benchmark_suite.temperature | string }}"
+      - --percentile-metrics
+      - "{{ benchmark_suite.percentile_metrics | join(',') }}"
+      - --metric-percentiles
+      - "{{ benchmark_suite.metric_percentiles | join(',') }}"
+      - --save-result
+      - --save-detailed
+      - --result-dir
+      - /tmp
+      - --result-filename
+      - >-
+        {{ benchmark_run.case.id }}-c{{ benchmark_run.concurrency
+        }}-r{{ benchmark_run.round }}.json
+      - --metadata
+      - "run_id={{ benchmark_run_id }}"
+      - "suite_sha256={{ benchmark_suite_sha256 }}"
+      - "git_commit={{ benchmark_git_commit }}"
+      - "case_id={{ benchmark_run.case.id }}"
+      - "round={{ benchmark_run.round }}"
+      - "input_len={{ benchmark_run.case.input_len }}"
+      - "output_len={{ benchmark_run.case.output_len }}"
+      - >-
+        result_file={{ benchmark_run.case.id }}-c{{ benchmark_run.concurrency
+        }}-r{{ benchmark_run.round }}.json
+
 - name: Run the selected benchmark round
   ansible.builtin.command:
     argv:
@@ -9,42 +70,23 @@
       - -lc
       - >-
         export OPENAI_API_KEY="$(cat /run/secrets/llm_api_key)";
-        exec vllm bench serve
-        --backend openai-chat
-        --base-url http://127.0.0.1:8080
-        --endpoint /v1/chat/completions
-        --model {{ benchmark_model | quote }}
-        --tokenizer {{ benchmark_tokenizer | quote }}
-        --dataset-name random
-        --random-input-len {{ benchmark_run.case.input_len | int }}
-        --random-output-len {{ benchmark_run.case.output_len | int }}
-        --random-range-ratio 0
-        --num-prompts {{ benchmark_run.num_prompts | int }}
-        --num-warmups {{ benchmark_run.num_warmups | int }}
-        --max-concurrency {{ benchmark_run.concurrency | int }}
-        --request-rate {{ benchmark_suite.request_rate | quote }}
-        --seed {{ benchmark_suite.seed | int }}
-        --ignore-eos
-        --temperature {{ benchmark_suite.temperature | int }}
-        --percentile-metrics {{ benchmark_suite.percentile_metrics | join(',') | quote }}
-        --metric-percentiles {{ benchmark_suite.metric_percentiles | join(',') | quote }}
-        --save-result
-        --save-detailed
-        --result-dir /tmp
-        --result-filename {{ benchmark_run.case.id }}-c{{ benchmark_run.concurrency
-        }}-r{{ benchmark_run.round }}.json
-        --metadata
-        run_id={{ benchmark_run_id }}
-        suite_sha256={{ benchmark_suite_sha256 }}
-        git_commit={{ benchmark_git_commit }}
-        case_id={{ benchmark_run.case.id }}
-        round={{ benchmark_run.round }}
-        input_len={{ benchmark_run.case.input_len }}
-        output_len={{ benchmark_run.case.output_len }}
-        result_file={{ benchmark_run.case.id }}-c{{ benchmark_run.concurrency
-        }}-r{{ benchmark_run.round }}.json
+        exec {{ benchmark_public_argv | map('quote') | join(' ') }}
   changed_when: false
   become: true
+
+- name: Record the measured benchmark argv
+  ansible.builtin.set_fact:
+    benchmark_invocations: >-
+      {{
+        benchmark_invocations
+        + [{
+          'phase': 'measure',
+          'case_id': benchmark_run.case.id,
+          'concurrency': benchmark_run.concurrency | int,
+          'round': benchmark_run.round | int,
+          'argv': benchmark_public_argv
+        }]
+      }}
 
 - name: Copy the raw round result from the container
   ansible.builtin.command:

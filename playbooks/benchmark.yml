@@ -170,6 +170,7 @@
         benchmark_restored: false
         benchmark_result_checksums: []
         benchmark_result_paths: []
+        benchmark_invocations: []
 
     - name: Read the production Compose file
       ansible.builtin.slurp:
@@ -454,7 +455,12 @@
           created: "{{ benchmark_inspected_container.Created | default(null) }}"
           restart_count: "{{ benchmark_inspected_container.RestartCount | default(null) }}"
           entrypoint: "{{ benchmark_inspected_container.Config.Entrypoint | default([]) }}"
-          command: "{{ benchmark_inspected_container.Config.Cmd | default([]) }}"
+          command: >-
+            {{
+              benchmark_inspected_container.Config.Cmd | default([])
+              | map('regex_replace', '^.*; exec ', '')
+              | list
+            }}
           devices: "{{ benchmark_inspected_container.HostConfig.Devices | default([]) }}"
           ipc_mode: "{{ benchmark_inspected_container.HostConfig.IpcMode | default(null) }}"
           privileged: "{{ benchmark_inspected_container.HostConfig.Privileged | default(null) }}"
@@ -508,6 +514,7 @@
           benchmark:
             suite: "{{ benchmark_suite }}"
             command: vllm bench serve
+            invocations: "{{ benchmark_invocations }}"
             raw_results: "{{ benchmark_result_checksums }}"
           telemetry:
             before: "{{ benchmark_gpu_before.stdout | default(null) }}"

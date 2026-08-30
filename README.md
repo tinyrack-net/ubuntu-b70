@@ -73,7 +73,7 @@ make benchmark-restore
 
 결과는 `benchmarks/runs/<UTC>-<commit>/` 아래에 저장한다. `raw/`에는 vLLM 상세 원본,
 `summary.json`에는 metric별 mean·median·min·max·CV, `manifest.json`에는 Git·suite·OS·GPU·
-container image·모델 checksum과 복구 상태를 기록한다. 요청 실패, 비유한 metric, 출력 길이
+container image·모델 checksum·공개 benchmark argv와 복구 상태를 기록한다. 요청 실패, 비유한 metric, 출력 길이
 불일치 또는 세 번 측정한 output TPS의 CV가 5%를 초과하면 실행은 실패한다. 실패한 원본과
 `failure.json`도 삭제하지 않는다.
 
