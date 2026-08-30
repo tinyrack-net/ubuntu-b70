@@ -145,7 +145,7 @@
 
 - name: Install vLLM content canary
   ansible.builtin.copy:
-    src: vllm_content_canary.py
+    src: vllm_content_canary.sh
     dest: /usr/local/libexec/vllm-content-canary
     owner: root
     group: root

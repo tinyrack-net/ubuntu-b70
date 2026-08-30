@@ -1,0 +1,67 @@
+---
+- name: Restore the production vLLM Compose project
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - "{{ benchmark_compose_project }}"
+      - --file
+      - "{{ benchmark_production_compose }}"
+      - up
+      - --detach
+      - --force-recreate
+      - --remove-orphans
+  register: benchmark_restore_compose
+  changed_when: true
+  failed_when: false
+  become: true
+
+- name: Wait for the restored vLLM health endpoint
+  ansible.builtin.uri:
+    url: "http://{{ llm_runtime_bind_address }}:{{ benchmark_port }}/health"
+    status_code: 200
+    headers:
+      Authorization: "Bearer {{ llm_api_key }}"
+  register: benchmark_restore_health
+  until: benchmark_restore_health.status | default(0) == 200
+  retries: 180
+  delay: 10
+  failed_when: false
+  no_log: true
+
+- name: Verify the restored authenticated model endpoint
+  ansible.builtin.uri:
+    url: "http://{{ llm_runtime_bind_address }}:{{ benchmark_port }}/v1/models"
+    status_code: 200
+    headers:
+      Authorization: "Bearer {{ llm_api_key }}"
+  register: benchmark_restore_models
+  failed_when: false
+  no_log: true
+
+- name: Restore the content canary timer
+  ansible.builtin.systemd_service:
+    name: "vllm-content-canary-{{ benchmark_container_name }}.timer"
+    enabled: true
+    state: started
+    daemon_reload: true
+  register: benchmark_restore_canary
+  failed_when: false
+  become: true
+
+- name: Remove the temporary benchmark Compose file
+  ansible.builtin.file:
+    path: "{{ benchmark_isolated_compose }}"
+    state: absent
+  become: true
+
+- name: Record restoration status
+  ansible.builtin.set_fact:
+    benchmark_restored: >-
+      {{
+        (benchmark_restore_compose.rc | default(1) == 0)
+        and (benchmark_restore_health.status | default(0) == 200)
+        and (benchmark_restore_models.status | default(0) == 200)
+        and not (benchmark_restore_canary.failed | default(true))
+      }}

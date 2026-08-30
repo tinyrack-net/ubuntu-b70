@@ -51,34 +51,34 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 
 ## API TPS 벤치마크
 
-실행 중인 엔진을 중단하지 않고 공통 OpenAI streaming API로 prompt 처리, token
-generation, 동시성 1/2/4 성능을 측정한다. API 키는 `ansible-inventory`에서
-메모리로만 읽으며 출력이나 결과 파일에 저장하지 않는다.
+컨테이너에 포함된 표준 `vllm bench serve`로 고정된 random dataset의 prompt 처리,
+token generation, TTFT, TPOT, ITL, E2E latency와 aggregate throughput을 측정한다.
+표준 suite는 [`benchmarks/suite.yml`](benchmarks/suite.yml)에 있으며 seed, 입력·출력 길이,
+동시성, 반복 수와 percentile을 모두 고정한다. API 키는 컨테이너의 secret 파일에서만
+읽으며 결과에 저장하지 않는다.
 
 ```bash
 make benchmark-api
 ```
 
-결과는 `benchmarks/results/<UTC timestamp>-<engine>-openai.json`과
-`benchmarks/latest.md`에 저장된다. 128/512/2048-token prompt와 128/256-token
-generation을 각각 5회 측정하고, 동시성별 aggregate output tokens/s도 기록한다.
+정식 실행은 깨끗한 Git commit에서만 허용된다. 측정 중 content canary를 멈추고 같은
+Compose 구성을 loopback 전용 포트로 재기동하여 외부 트래픽을 격리한다. 완료 또는 실패
+후에는 운영 Compose와 canary를 자동 복구한다. 강제 중단 등으로 복구되지 않았다면 다음
+명령을 실행한다.
 
-인스턴스별 모델·revision·양자화·speculative decoding·KV cache·attention backend
-override를 사용하는 비교 실험은 `benchmarks/profiles/`의 profile을 적용한다. 2026-08-28
-단일 요청 TPS 조사 결과와 운영 권고안은
-[`benchmarks/single-tps-20260828.md`](benchmarks/single-tps-20260828.md)에 기록되어 있다.
-Intel runtime, XPU Graph, batching, prefix caching, MTP 1/2/3 및 2-GPU replica까지 확장한
-최신 조사 결과는 [`benchmarks/b70-tuning-20260829.md`](benchmarks/b70-tuning-20260829.md)에
-기록되어 있다.
+```bash
+make benchmark-restore
+```
 
-128K context 후보는 FP8 KV로 메모리 용량은 확보했지만 Intel MTP3에서 출력이 `!`로
-붕괴해 탈락했다. 당시 운영 기본값과 상세 결과는
-[`benchmarks/long-context-20260829.md`](benchmarks/long-context-20260829.md)에 기록되어 있다.
-96K/auto KV 후보도 메모리는 충분했지만 24K 이상 입력에서 같은 출력 붕괴가 발생했고,
-32K 설정으로 롤백하면 동일 24K 입력이 정상화되어 운영 승격에서 제외했다.
-GDN hardening과 causal-state OOB backport를 적용한 고정 로컬 이미지도 69,632 context
-반복 검증에서 같은 비유한 logprob/출력 붕괴가 발생해 탈락했다. 후속 Graph ON/OFF
-대조 실험에서는 Graph OFF가 auto KV로 118,784 context까지 marker, 장문 C2 및 혼합
-C8을 OOM/restart/preemption 없이 처리했다. 단일 decode TPS는 Graph ON보다 약 19%
-낮지만 장문 안정성을 우선해 118,784/Graph OFF를 운영 기본값으로 선택했다. 상세 결과는
-[`benchmarks/graph-off-20260830.md`](benchmarks/graph-off-20260830.md)에 기록되어 있다.
+결과는 `benchmarks/runs/<UTC>-<commit>/` 아래에 저장한다. `raw/`에는 vLLM 상세 원본,
+`summary.json`에는 metric별 mean·median·min·max·CV, `manifest.json`에는 Git·suite·OS·GPU·
+container image·모델 checksum과 복구 상태를 기록한다. 요청 실패, 비유한 metric, 출력 길이
+불일치 또는 세 번 측정한 output TPS의 CV가 5%를 초과하면 실행은 실패한다. 실패한 원본과
+`failure.json`도 삭제하지 않는다.
+
+라이브 API와 한국어·reasoning 비노출·도구 호출·streaming 회귀는 digest가 고정된 Hurl
+컨테이너로 검증한다. Vault API 키는 임시 `0600` 변수 파일로만 전달하고 종료 시 삭제한다.
+
+```bash
+make test-api
+```

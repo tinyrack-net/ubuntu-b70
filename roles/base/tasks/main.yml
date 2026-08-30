@@ -10,7 +10,7 @@
     name:
       - ca-certificates
       - curl
+      - jq
       - python3-debian
     state: present
   become: true
-

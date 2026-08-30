@@ -1,8 +1,7 @@
-.PHONY: install-tools install-requirements syntax validate test lint verify ping check apply benchmark-api benchmark-long-context
+.PHONY: install-tools install-requirements syntax validate lint verify ping check apply test-api benchmark-api benchmark-restore
 
 ANSIBLE_PLAYBOOK ?= ansible-playbook
 ANSIBLE_GALAXY ?= ansible-galaxy
-PYTHON ?= python3
 ANSIBLE_ARGS ?=
 BENCHMARK_ARGS ?=
 
@@ -16,18 +15,18 @@ install-requirements:
 syntax:
 	$(ANSIBLE_PLAYBOOK) --syntax-check playbooks/setup.yml
 	$(ANSIBLE_PLAYBOOK) --syntax-check playbooks/ping.yml
+	$(ANSIBLE_PLAYBOOK) --syntax-check playbooks/test_api.yml
+	$(ANSIBLE_PLAYBOOK) --syntax-check playbooks/benchmark.yml
+	$(ANSIBLE_PLAYBOOK) --syntax-check playbooks/benchmark_restore.yml
 
 validate:
 	$(ANSIBLE_PLAYBOOK) tests/validate_project.yml
-
-test:
-	$(PYTHON) -m unittest discover -s tests -p 'test_*.py'
 
 lint:
 	yamllint .
 	ansible-lint
 
-verify: syntax validate test lint
+verify: syntax validate lint
 
 ping:
 	$(ANSIBLE_PLAYBOOK) playbooks/ping.yml $(ANSIBLE_ARGS)
@@ -39,7 +38,10 @@ apply:
 	$(ANSIBLE_PLAYBOOK) playbooks/setup.yml $(ANSIBLE_ARGS)
 
 benchmark-api:
-	$(PYTHON) -m scripts.benchmark_openai $(BENCHMARK_ARGS)
+	$(ANSIBLE_PLAYBOOK) playbooks/benchmark.yml $(BENCHMARK_ARGS)
 
-benchmark-long-context:
-	$(PYTHON) -m scripts.benchmark_long_context $(BENCHMARK_ARGS)
+benchmark-restore:
+	$(ANSIBLE_PLAYBOOK) playbooks/benchmark_restore.yml $(ANSIBLE_ARGS)
+
+test-api:
+	$(ANSIBLE_PLAYBOOK) playbooks/test_api.yml $(ANSIBLE_ARGS)

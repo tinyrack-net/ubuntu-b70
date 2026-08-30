@@ -1,0 +1,523 @@
+---
+- name: Prepare a reproducible vLLM benchmark run
+  hosts: localhost
+  gather_facts: false
+  vars:
+    benchmark_root: "{{ playbook_dir }}/../benchmarks"
+    benchmark_suite_path: "{{ benchmark_root }}/suite.yml"
+    benchmark_require_clean_git: true
+  tasks:
+    - name: Load and validate the canonical benchmark suite
+      ansible.builtin.set_fact:
+        benchmark_suite: "{{ lookup('file', benchmark_suite_path) | from_yaml }}"
+
+    - name: Assert canonical suite invariants
+      ansible.builtin.assert:
+        that:
+          - benchmark_suite.schema_version == 1
+          - benchmark_suite.seed is number
+          - benchmark_suite.rounds == 3
+          - benchmark_suite.requests_per_concurrency > 0
+          - benchmark_suite.request_rate == 'inf'
+          - benchmark_suite.temperature == 0
+          - benchmark_suite.ignore_eos | bool
+          - benchmark_suite.save_detailed | bool
+          - benchmark_suite.warmups_per_concurrency > 0
+          - benchmark_suite.metric_percentiles == [50, 90, 95, 99]
+          - benchmark_suite.percentile_metrics == ['ttft', 'tpot', 'itl', 'e2el']
+          - benchmark_suite.output_tps_cv_limit_percent == 5.0
+          - benchmark_suite.concurrency_levels == [1, 2, 4, 8]
+          - benchmark_suite.cases | length == 3
+          - benchmark_suite.cases | map(attribute='id') | unique | length == benchmark_suite.cases | length
+          - benchmark_suite.cases | map(attribute='input_len') | min > 0
+          - benchmark_suite.cases | map(attribute='output_len') | min > 0
+
+    - name: Read the repository commit
+      ansible.builtin.command:
+        argv: [git, rev-parse, HEAD]
+        chdir: "{{ playbook_dir }}/.."
+      register: benchmark_git_commit_result
+      changed_when: false
+
+    - name: Read the repository worktree state
+      ansible.builtin.command:
+        argv: [git, status, --porcelain=v1, --untracked-files=all]
+        chdir: "{{ playbook_dir }}/.."
+      register: benchmark_git_status
+      changed_when: false
+
+    - name: Require a clean repository for canonical results
+      ansible.builtin.assert:
+        that:
+          - not benchmark_require_clean_git | bool or benchmark_git_status.stdout | length == 0
+        fail_msg: >-
+          Canonical benchmarks require a clean Git commit. Commit the implementation first,
+          or use -e benchmark_require_clean_git=false only for a non-canonical smoke run.
+
+    - name: Calculate the suite checksum
+      ansible.builtin.stat:
+        path: "{{ benchmark_suite_path }}"
+        checksum_algorithm: sha256
+        get_checksum: true
+      register: benchmark_suite_stat
+
+    - name: Create the benchmark run identity
+      ansible.builtin.set_fact:
+        benchmark_git_commit: "{{ benchmark_git_commit_result.stdout }}"
+        benchmark_git_clean: "{{ benchmark_git_status.stdout | length == 0 }}"
+        benchmark_suite_sha256: "{{ benchmark_suite_stat.stat.checksum }}"
+        benchmark_run_id: >-
+          {{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}-{{ benchmark_git_commit_result.stdout[:12] }}
+
+    - name: Build the complete benchmark matrix
+      ansible.builtin.set_fact:
+        benchmark_runs: >-
+          {{
+            (benchmark_runs | default([]))
+            + [{
+              'case': item.0.0,
+              'concurrency': item.0.1,
+              'round': item.1,
+              'num_prompts': (item.0.1 | int) * (benchmark_suite.requests_per_concurrency | int),
+              'num_warmups': (item.0.1 | int) * (benchmark_suite.warmups_per_concurrency | int)
+            }]
+          }}
+      loop: >-
+        {{
+          benchmark_suite.cases
+          | product(benchmark_suite.concurrency_levels)
+          | product(range(1, benchmark_suite.rounds + 1))
+          | list
+        }}
+      loop_control:
+        label: "{{ item.0.0.id }}-c{{ item.0.1 }}-r{{ item.1 }}"
+
+    - name: Set local benchmark paths
+      ansible.builtin.set_fact:
+        benchmark_run_dir: "{{ benchmark_root }}/runs/{{ benchmark_run_id }}"
+        benchmark_raw_dir: "{{ benchmark_root }}/runs/{{ benchmark_run_id }}/raw"
+
+    - name: Create local benchmark result directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ benchmark_run_dir }}"
+        - "{{ benchmark_raw_dir }}"
+
+- name: Isolate, execute, and restore the vLLM benchmark
+  hosts: ubuntu
+  gather_facts: true
+  vars:
+    llm_role_defaults: >-
+      {{ lookup('file', playbook_dir ~ '/../roles/llm_runtime/defaults/main.yml') | from_yaml }}
+    vllm_role_defaults: >-
+      {{ lookup('file', playbook_dir ~ '/../roles/vllm_server/defaults/main.yml') | from_yaml }}
+    benchmark_suite: "{{ hostvars.localhost.benchmark_suite }}"
+    benchmark_runs: "{{ hostvars.localhost.benchmark_runs }}"
+    benchmark_run_id: "{{ hostvars.localhost.benchmark_run_id }}"
+    benchmark_run_dir: "{{ hostvars.localhost.benchmark_run_dir }}"
+    benchmark_raw_dir: "{{ hostvars.localhost.benchmark_raw_dir }}"
+    benchmark_git_commit: "{{ hostvars.localhost.benchmark_git_commit }}"
+    benchmark_git_clean: "{{ hostvars.localhost.benchmark_git_clean }}"
+    benchmark_suite_sha256: "{{ hostvars.localhost.benchmark_suite_sha256 }}"
+    benchmark_container_name: >-
+      {{ llm_runtime_vllm_container_name | default(llm_role_defaults.llm_runtime_vllm_container_name) }}
+    benchmark_port: "{{ llm_runtime_port | default(llm_role_defaults.llm_runtime_port) }}"
+    benchmark_model: >-
+      {{ vllm_server_served_model_name | default(vllm_role_defaults.vllm_server_served_model_name) }}
+    benchmark_tokenizer: >-
+      {{ vllm_server_tokenizer | default(vllm_role_defaults.vllm_server_tokenizer) }}
+    benchmark_compose_project: vllm-server
+    benchmark_production_compose: /opt/vllm-server/compose.yml
+    benchmark_isolated_compose: /opt/vllm-server/compose.benchmark.yml
+    benchmark_remote_dir: "/tmp/{{ benchmark_run_id }}"
+    benchmark_metric_names:
+      - request_throughput
+      - output_throughput
+      - total_token_throughput
+      - mean_ttft_ms
+      - median_ttft_ms
+      - p50_ttft_ms
+      - p90_ttft_ms
+      - p95_ttft_ms
+      - p99_ttft_ms
+      - mean_tpot_ms
+      - median_tpot_ms
+      - p50_tpot_ms
+      - p90_tpot_ms
+      - p95_tpot_ms
+      - p99_tpot_ms
+      - mean_itl_ms
+      - median_itl_ms
+      - p50_itl_ms
+      - p90_itl_ms
+      - p95_itl_ms
+      - p99_itl_ms
+      - mean_e2el_ms
+      - median_e2el_ms
+      - p50_e2el_ms
+      - p90_e2el_ms
+      - p95_e2el_ms
+      - p99_e2el_ms
+  tasks:
+    - name: Initialize benchmark execution state
+      ansible.builtin.set_fact:
+        benchmark_failed: false
+        benchmark_failure: {}
+        benchmark_restored: false
+        benchmark_result_checksums: []
+        benchmark_result_paths: []
+
+    - name: Read the production Compose file
+      ansible.builtin.slurp:
+        src: "{{ benchmark_production_compose }}"
+      register: benchmark_production_compose_raw
+      become: true
+
+    - name: Verify the production port can be isolated
+      ansible.builtin.assert:
+        that:
+          - >-
+            ('"' ~ llm_runtime_bind_address ~ ':' ~ (benchmark_port | string) ~ ':8080"')
+            in (benchmark_production_compose_raw.content | b64decode)
+        fail_msg: The rendered production Compose port did not match the inventory binding.
+
+    - name: Render the loopback-only benchmark Compose file
+      ansible.builtin.copy:
+        content: >-
+          {{
+            (benchmark_production_compose_raw.content | b64decode).replace(
+              '"' ~ llm_runtime_bind_address ~ ':' ~ (benchmark_port | string) ~ ':8080"',
+              '"127.0.0.1:' ~ (benchmark_port | string) ~ ':8080"'
+            )
+          }}
+        dest: "{{ benchmark_isolated_compose }}"
+        owner: root
+        group: root
+        mode: "0600"
+      become: true
+
+    - name: Validate the isolated Compose project
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - --project-name
+          - "{{ benchmark_compose_project }}"
+          - --file
+          - "{{ benchmark_isolated_compose }}"
+          - config
+          - --quiet
+      changed_when: false
+      become: true
+
+    - name: Execute the isolated benchmark lifecycle
+      block:
+        - name: Stop the content canary during measurement
+          ansible.builtin.systemd_service:
+            name: "vllm-content-canary-{{ benchmark_container_name }}.timer"
+            state: stopped
+          become: true
+
+        - name: Recreate vLLM with a loopback-only published port
+          ansible.builtin.command:
+            argv:
+              - docker
+              - compose
+              - --project-name
+              - "{{ benchmark_compose_project }}"
+              - --file
+              - "{{ benchmark_isolated_compose }}"
+              - up
+              - --detach
+              - --force-recreate
+              - --remove-orphans
+          changed_when: true
+          become: true
+
+        - name: Wait for isolated vLLM readiness
+          ansible.builtin.uri:
+            url: "http://127.0.0.1:{{ benchmark_port }}/health"
+            status_code: 200
+            headers:
+              Authorization: "Bearer {{ llm_api_key }}"
+          register: benchmark_isolated_health
+          until: benchmark_isolated_health.status == 200
+          retries: 180
+          delay: 10
+          no_log: true
+
+        - name: Create the remote benchmark result directory
+          ansible.builtin.file:
+            path: "{{ benchmark_remote_dir }}"
+            state: directory
+            owner: root
+            group: root
+            mode: "0700"
+          become: true
+
+        - name: Inspect the isolated container without environment secrets
+          ansible.builtin.command:
+            argv: [docker, inspect, "{{ benchmark_container_name }}"]
+          register: benchmark_container_inspect_raw
+          changed_when: false
+          become: true
+
+        - name: Read runtime software versions
+          ansible.builtin.command:
+            argv:
+              - docker
+              - exec
+              - "{{ benchmark_container_name }}"
+              - bash
+              - -lc
+              - >-
+                vllm --version;
+                python -c 'import torch; print(torch.__version__)'
+          register: benchmark_runtime_versions
+          changed_when: false
+          become: true
+
+        - name: Read Docker version
+          ansible.builtin.command:
+            argv: [docker, version, --format, "{{ '{{' }}.Server.Version{{ '}}' }}"]
+          register: benchmark_docker_version
+          changed_when: false
+          become: true
+
+        - name: Read GPU PCI and kernel-driver information
+          ansible.builtin.command:
+            argv: [lspci, -Dnnk, -d, "{{ intel_gpu_pci_id }}"]
+          register: benchmark_gpu_pci
+          changed_when: false
+          become: true
+
+        - name: Read Intel Level Zero runtime package version
+          ansible.builtin.command:
+            argv: [dpkg-query, --show, '--showformat=${Version}', intel-level-zero-gpu]
+          register: benchmark_level_zero_version
+          changed_when: false
+
+        - name: Read the production Compose checksum
+          ansible.builtin.stat:
+            path: "{{ benchmark_production_compose }}"
+            checksum_algorithm: sha256
+            get_checksum: true
+          register: benchmark_compose_stat
+          become: true
+
+        - name: Calculate actual pinned model checksums
+          ansible.builtin.command:
+            argv:
+              - docker
+              - exec
+              - "{{ benchmark_container_name }}"
+              - sha256sum
+              - >-
+                /root/.cache/huggingface/hub/models--{{
+                vllm_role_defaults.vllm_server_model | replace('/', '--')
+                }}/snapshots/{{ vllm_role_defaults.vllm_server_model_revision }}/{{ item.name }}
+          loop: "{{ vllm_role_defaults.vllm_server_model_files }}"
+          loop_control:
+            label: "{{ item.name }}"
+          register: benchmark_model_checksum_results
+          changed_when: false
+          become: true
+
+        - name: Capture pre-benchmark GPU telemetry
+          ansible.builtin.command:
+            argv: [timeout, "3", intel_gpu_top, -J, -s, "1000", -o, -]
+          register: benchmark_gpu_before
+          changed_when: false
+          failed_when: false
+          become: true
+
+        - name: Run, validate, and fetch every canonical benchmark round
+          ansible.builtin.include_tasks: tasks/run_vllm_benchmark_round.yml
+          loop: "{{ benchmark_runs }}"
+          loop_control:
+            loop_var: benchmark_run
+            label: >-
+              {{ benchmark_run.case.id }}-c{{ benchmark_run.concurrency
+              }}-r{{ benchmark_run.round }}
+
+        - name: Generate objective benchmark aggregates with jq
+          ansible.builtin.command:
+            argv: >-
+              {{
+                ['jq', '-s', '--arg', 'run_id', benchmark_run_id,
+                 '--arg', 'suite_sha256', benchmark_suite_sha256,
+                 '--argjson', 'cv_limit', benchmark_suite.output_tps_cv_limit_percent | string,
+                 '--argjson', 'metric_names', benchmark_metric_names | to_json,
+                 '--from-file', playbook_dir ~ '/../benchmarks/aggregate.jq']
+                + benchmark_result_paths
+              }}
+          delegate_to: localhost
+          register: benchmark_summary_command
+          changed_when: false
+
+        - name: Save the machine-generated benchmark summary
+          ansible.builtin.copy:
+            content: "{{ (benchmark_summary_command.stdout | from_json) | to_nice_json }}\n"
+            dest: "{{ benchmark_run_dir }}/summary.json"
+            mode: "0644"
+          delegate_to: localhost
+
+        - name: Parse the benchmark summary
+          ansible.builtin.set_fact:
+            benchmark_summary: "{{ benchmark_summary_command.stdout | from_json }}"
+
+        - name: Capture post-benchmark GPU telemetry
+          ansible.builtin.command:
+            argv: [timeout, "3", intel_gpu_top, -J, -s, "1000", -o, -]
+          register: benchmark_gpu_after
+          changed_when: false
+          failed_when: false
+          become: true
+
+      rescue:
+        - name: Record the benchmark failure
+          ansible.builtin.set_fact:
+            benchmark_failed: true
+            benchmark_failure:
+              task: "{{ ansible_failed_task.name | default('unknown') }}"
+              message: "{{ ansible_failed_result.msg | default('benchmark task failed') }}"
+              rc: "{{ ansible_failed_result.rc | default(none) }}"
+              stdout: "{{ ansible_failed_result.stdout | default('') }}"
+              stderr: "{{ ansible_failed_result.stderr | default('') }}"
+
+      always:
+        - name: Restore production after benchmark execution
+          ansible.builtin.include_tasks: tasks/restore_vllm_benchmark.yml
+
+        - name: Remove remote benchmark temporary files
+          ansible.builtin.file:
+            path: "{{ benchmark_remote_dir }}"
+            state: absent
+          become: true
+
+    - name: Record a reproducibility gate failure
+      ansible.builtin.set_fact:
+        benchmark_failed: true
+        benchmark_failure: >-
+          {{
+            benchmark_failure | combine({
+              'reproducibility_gate': 'output TPS CV exceeded '
+                                      ~ (benchmark_suite.output_tps_cv_limit_percent | string)
+                                      ~ '%'
+            })
+          }}
+      when:
+        - benchmark_summary is defined
+        - not benchmark_summary.passed | bool
+
+    - name: Record a production restoration failure
+      ansible.builtin.set_fact:
+        benchmark_failed: true
+        benchmark_failure: >-
+          {{
+            benchmark_failure | combine({
+              'restoration': 'production Compose, API, or content canary restoration failed'
+            })
+          }}
+      when: not benchmark_restored | bool
+
+    - name: Save objective failure details when present
+      ansible.builtin.copy:
+        content: "{{ benchmark_failure | to_nice_json }}\n"
+        dest: "{{ benchmark_run_dir }}/failure.json"
+        mode: "0644"
+      delegate_to: localhost
+      when: benchmark_failed | bool
+
+    - name: Select the inspected isolated container
+      ansible.builtin.set_fact:
+        benchmark_inspected_container: >-
+          {{ benchmark_container_inspect_raw.stdout | default('[{}]') | from_json | first }}
+
+    - name: Build the sanitized container manifest
+      ansible.builtin.set_fact:
+        benchmark_container_manifest:
+          id: "{{ benchmark_inspected_container.Id | default(null) }}"
+          image_id: "{{ benchmark_inspected_container.Image | default(null) }}"
+          image_ref: "{{ benchmark_inspected_container.Config.Image | default(null) }}"
+          created: "{{ benchmark_inspected_container.Created | default(null) }}"
+          restart_count: "{{ benchmark_inspected_container.RestartCount | default(null) }}"
+          entrypoint: "{{ benchmark_inspected_container.Config.Entrypoint | default([]) }}"
+          command: "{{ benchmark_inspected_container.Config.Cmd | default([]) }}"
+          devices: "{{ benchmark_inspected_container.HostConfig.Devices | default([]) }}"
+          ipc_mode: "{{ benchmark_inspected_container.HostConfig.IpcMode | default(null) }}"
+          privileged: "{{ benchmark_inspected_container.HostConfig.Privileged | default(null) }}"
+
+    - name: Build the final objective environment manifest
+      ansible.builtin.set_fact:
+        benchmark_manifest:
+          schema_version: 1
+          run_id: "{{ benchmark_run_id }}"
+          started_at_utc: "{{ benchmark_run_id.split('-')[0] }}"
+          completed_at_utc: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+          status: >-
+            {{
+              'failed'
+              if benchmark_failed or not benchmark_restored
+                 or not (benchmark_summary.passed | default(false))
+              else 'passed'
+            }}
+          restored: "{{ benchmark_restored | bool }}"
+          isolation: loopback-recreated-container
+          repository:
+            commit: "{{ benchmark_git_commit }}"
+            clean: "{{ benchmark_git_clean | bool }}"
+            suite_sha256: "{{ benchmark_suite_sha256 }}"
+          target:
+            inventory_host: "{{ inventory_hostname }}"
+            os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
+            kernel: "{{ ansible_kernel }}"
+            architecture: "{{ ansible_architecture }}"
+            cpu_model: "{{ ansible_processor | default([]) | unique | list }}"
+            cpu_vcpus: "{{ ansible_processor_vcpus }}"
+            memory_mb: "{{ ansible_memtotal_mb }}"
+            load_average: "{{ ansible_loadavg | default({}) }}"
+            docker_version: "{{ benchmark_docker_version.stdout | default(null) }}"
+            level_zero_version: "{{ benchmark_level_zero_version.stdout | default(null) }}"
+            gpu_pci: "{{ benchmark_gpu_pci.stdout_lines | default([]) }}"
+          runtime:
+            versions: "{{ benchmark_runtime_versions.stdout_lines | default([]) }}"
+            production_compose_sha256: "{{ benchmark_compose_stat.stat.checksum | default(null) }}"
+            container: "{{ benchmark_container_manifest }}"
+            model:
+              id: "{{ vllm_role_defaults.vllm_server_model }}"
+              revision: "{{ vllm_role_defaults.vllm_server_model_revision }}"
+              tokenizer: "{{ benchmark_tokenizer }}"
+              tokenizer_revision: "{{ vllm_role_defaults.vllm_server_tokenizer_revision }}"
+              files: >-
+                {{
+                  benchmark_model_checksum_results.results | default([])
+                  | map(attribute='stdout') | list
+                }}
+          benchmark:
+            suite: "{{ benchmark_suite }}"
+            command: vllm bench serve
+            raw_results: "{{ benchmark_result_checksums }}"
+          telemetry:
+            before: "{{ benchmark_gpu_before.stdout | default(null) }}"
+            after: "{{ benchmark_gpu_after.stdout | default(null) }}"
+
+    - name: Save the final environment manifest
+      ansible.builtin.copy:
+        content: "{{ benchmark_manifest | to_nice_json }}\n"
+        dest: "{{ benchmark_run_dir }}/manifest.json"
+        mode: "0644"
+      delegate_to: localhost
+
+    - name: Require successful measurements and production restoration
+      ansible.builtin.assert:
+        that:
+          - not benchmark_failed | bool
+          - benchmark_summary.passed | default(false) | bool
+          - benchmark_restored | bool
+        fail_msg: >-
+          Benchmark measurements, the 5% output-TPS CV gate, or production restoration failed.
+          Objective evidence remains in {{ benchmark_run_dir }}.

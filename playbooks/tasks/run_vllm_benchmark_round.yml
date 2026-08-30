@@ -1,0 +1,128 @@
+---
+- name: Run the selected benchmark round
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - "{{ benchmark_container_name }}"
+      - bash
+      - -lc
+      - >-
+        export OPENAI_API_KEY="$(cat /run/secrets/llm_api_key)";
+        exec vllm bench serve
+        --backend openai-chat
+        --base-url http://127.0.0.1:8080
+        --endpoint /v1/chat/completions
+        --model {{ benchmark_model | quote }}
+        --tokenizer {{ benchmark_tokenizer | quote }}
+        --dataset-name random
+        --random-input-len {{ benchmark_run.case.input_len | int }}
+        --random-output-len {{ benchmark_run.case.output_len | int }}
+        --random-range-ratio 0
+        --num-prompts {{ benchmark_run.num_prompts | int }}
+        --num-warmups {{ benchmark_run.num_warmups | int }}
+        --max-concurrency {{ benchmark_run.concurrency | int }}
+        --request-rate {{ benchmark_suite.request_rate | quote }}
+        --seed {{ benchmark_suite.seed | int }}
+        --ignore-eos
+        --temperature {{ benchmark_suite.temperature | int }}
+        --percentile-metrics {{ benchmark_suite.percentile_metrics | join(',') | quote }}
+        --metric-percentiles {{ benchmark_suite.metric_percentiles | join(',') | quote }}
+        --save-result
+        --save-detailed
+        --result-dir /tmp
+        --result-filename {{ benchmark_run.case.id }}-c{{ benchmark_run.concurrency
+        }}-r{{ benchmark_run.round }}.json
+        --metadata
+        run_id={{ benchmark_run_id }}
+        suite_sha256={{ benchmark_suite_sha256 }}
+        git_commit={{ benchmark_git_commit }}
+        case_id={{ benchmark_run.case.id }}
+        round={{ benchmark_run.round }}
+        input_len={{ benchmark_run.case.input_len }}
+        output_len={{ benchmark_run.case.output_len }}
+        result_file={{ benchmark_run.case.id }}-c{{ benchmark_run.concurrency
+        }}-r{{ benchmark_run.round }}.json
+  changed_when: false
+  become: true
+
+- name: Copy the raw round result from the container
+  ansible.builtin.command:
+    argv:
+      - docker
+      - cp
+      - >-
+        {{ benchmark_container_name }}:/tmp/{{ benchmark_run.case.id
+        }}-c{{ benchmark_run.concurrency }}-r{{ benchmark_run.round }}.json
+      - >-
+        {{ benchmark_remote_dir }}/{{ benchmark_run.case.id
+        }}-c{{ benchmark_run.concurrency }}-r{{ benchmark_run.round }}.json
+  changed_when: false
+  become: true
+
+- name: Fetch the raw round result
+  ansible.builtin.fetch:
+    src: >-
+      {{ benchmark_remote_dir }}/{{ benchmark_run.case.id
+      }}-c{{ benchmark_run.concurrency }}-r{{ benchmark_run.round }}.json
+    dest: >-
+      {{ benchmark_raw_dir }}/{{ benchmark_run.case.id
+      }}-c{{ benchmark_run.concurrency }}-r{{ benchmark_run.round }}.json
+    flat: true
+  become: true
+
+- name: Calculate the raw round checksum
+  ansible.builtin.stat:
+    path: >-
+      {{ benchmark_raw_dir }}/{{ benchmark_run.case.id
+      }}-c{{ benchmark_run.concurrency }}-r{{ benchmark_run.round }}.json
+    checksum_algorithm: sha256
+    get_checksum: true
+  delegate_to: localhost
+  register: benchmark_round_stat
+
+- name: Record the raw round path and checksum
+  ansible.builtin.set_fact:
+    benchmark_result_paths: >-
+      {{
+        benchmark_result_paths
+        + [benchmark_raw_dir ~ '/' ~ benchmark_run.case.id
+           ~ '-c' ~ (benchmark_run.concurrency | string)
+           ~ '-r' ~ (benchmark_run.round | string) ~ '.json']
+      }}
+    benchmark_result_checksums: >-
+      {{
+        benchmark_result_checksums
+        + [{
+          'file': benchmark_run.case.id ~ '-c' ~ (benchmark_run.concurrency | string)
+                  ~ '-r' ~ (benchmark_run.round | string) ~ '.json',
+          'sha256': benchmark_round_stat.stat.checksum
+        }]
+      }}
+
+- name: Validate the detailed native round result
+  ansible.builtin.command:
+    argv:
+      - jq
+      - --exit-status
+      - >-
+        (.completed == ($prompts | tonumber)) and
+        (.failed == 0) and
+        (.errors | length == ($prompts | tonumber)) and
+        (.errors | all(. == null or . == "")) and
+        (.output_lens | length == ($prompts | tonumber)) and
+        (.output_lens | all(. == ($output | tonumber))) and
+        ([.request_throughput, .output_throughput, .total_token_throughput,
+          .mean_ttft_ms, .mean_tpot_ms, .mean_itl_ms, .mean_e2el_ms]
+         | all(type == "number" and . == . and fabs < 1e100))
+      - --arg
+      - prompts
+      - "{{ benchmark_run.num_prompts | string }}"
+      - --arg
+      - output
+      - "{{ benchmark_run.case.output_len | string }}"
+      - >-
+        {{ benchmark_raw_dir }}/{{ benchmark_run.case.id
+        }}-c{{ benchmark_run.concurrency }}-r{{ benchmark_run.round }}.json
+  delegate_to: localhost
+  changed_when: false

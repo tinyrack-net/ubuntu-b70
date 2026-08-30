@@ -1,0 +1,24 @@
+---
+schema_version: 1
+seed: 0
+rounds: 3
+requests_per_concurrency: 5
+request_rate: inf
+temperature: 0
+ignore_eos: true
+save_detailed: true
+warmups_per_concurrency: 1
+metric_percentiles: [50, 90, 95, 99]
+percentile_metrics: [ttft, tpot, itl, e2el]
+output_tps_cv_limit_percent: 5.0
+concurrency_levels: [1, 2, 4, 8]
+cases:
+  - id: pp128-tg256
+    input_len: 128
+    output_len: 256
+  - id: pp512-tg256
+    input_len: 512
+    output_len: 256
+  - id: pp2048-tg128
+    input_len: 2048
+    output_len: 128

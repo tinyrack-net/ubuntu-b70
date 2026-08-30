@@ -10,6 +10,24 @@
         inventory: "{{ lookup('file', root ~ '/inventories/hosts.yml') }}"
         common_vars: "{{ lookup('file', root ~ '/inventories/group_vars/all/main.yml') }}"
         gitignore: "{{ lookup('file', root ~ '/.gitignore') }}"
+        setup_playbook: "{{ lookup('file', root ~ '/playbooks/setup.yml') }}"
+        llama_defaults: "{{ lookup('file', root ~ '/roles/llama_server/defaults/main.yml') }}"
+        llama_compose: "{{ lookup('file', root ~ '/roles/llama_server/templates/compose.yml.j2') }}"
+        vllm_defaults: "{{ lookup('file', root ~ '/roles/vllm_server/defaults/main.yml') }}"
+        vllm_compose: "{{ lookup('file', root ~ '/roles/vllm_server/templates/compose.yml.j2') }}"
+        vllm_tasks: "{{ lookup('file', root ~ '/roles/vllm_server/tasks/main.yml') }}"
+        vllm_verify_tasks: "{{ lookup('file', root ~ '/roles/vllm_server/tasks/verify_model.yml') }}"
+        intel_defaults: "{{ lookup('file', root ~ '/roles/intel_gpu/defaults/main.yml') }}"
+        intel_tasks: "{{ lookup('file', root ~ '/roles/intel_gpu/tasks/main.yml') }}"
+        canary: "{{ lookup('file', root ~ '/roles/vllm_server/files/vllm_content_canary.sh') }}"
+        hurl_playbook: "{{ lookup('file', root ~ '/playbooks/test_api.yml') }}"
+        benchmark_playbook: "{{ lookup('file', root ~ '/playbooks/benchmark.yml') }}"
+        benchmark_restore: "{{ lookup('file', root ~ '/playbooks/benchmark_restore.yml') }}"
+        benchmark_restore_tasks: >-
+          {{ lookup('file', root ~ '/playbooks/tasks/restore_vllm_benchmark.yml') }}
+        benchmark_round_tasks: >-
+          {{ lookup('file', root ~ '/playbooks/tasks/run_vllm_benchmark_round.yml') }}
+        benchmark_suite: "{{ lookup('file', root ~ '/benchmarks/suite.yml') | from_yaml }}"
 
     - name: Read raw Vault ciphertext
       ansible.builtin.slurp:
@@ -26,3 +44,164 @@
           - "'ansible_password:' not in inventory"
           - "'vault_ubuntu_gpu_become_password' in inventory"
           - "'vault_llm_api_key' in common_vars"
+
+    - name: Assert engine role separation and selection
+      ansible.builtin.assert:
+        that:
+          - "'vllm_server_model:' not in common_vars"
+          - "'llama_server_model_file:' not in common_vars"
+          - "'llm_runtime_engine:' not in common_vars"
+          - "'role: llama_server' in setup_playbook"
+          - "\"when: llm_runtime_engine == 'llama_cpp'\" in setup_playbook"
+          - "'role: vllm_server' in setup_playbook"
+          - "\"when: llm_runtime_engine == 'vllm'\" in setup_playbook"
+          - "'role: llm_runtime' in setup_playbook"
+          - "'vllm_' not in (llama_defaults ~ llama_compose | lower)"
+          - "'llama_model_' not in (vllm_defaults ~ vllm_compose ~ vllm_tasks | lower)"
+          - "'llama_backend' not in (vllm_defaults ~ vllm_compose ~ vllm_tasks | lower)"
+          - "'llm_runtime_llama_container_name' in llama_compose"
+          - "'instance.name' in vllm_compose"
+
+    - name: Assert pinned Qwen XPU serving configuration
+      ansible.builtin.assert:
+        that:
+          - "'vllm_server_enable_auto_tool_choice: true' in vllm_defaults"
+          - "'vllm_server_tool_call_parser: qwen3_xml' in vllm_defaults"
+          - "'vllm_server_reasoning_parser: qwen3' in vllm_defaults"
+          - "'--enable-auto-tool-choice' in vllm_compose"
+          - "'vllm_server_tool_call_parser' in vllm_compose"
+          - "'vllm_server_reasoning_parser' in vllm_compose"
+          - "'vllm_server_max_num_seqs: 4' in vllm_defaults"
+          - "'vllm_server_context_size: 118784' in vllm_defaults"
+          - "'vllm_server_enable_xpu_graph: false' in vllm_defaults"
+          - "'intel/llm-scaler-vllm:0.21.0-b3.1@sha256:' in vllm_defaults"
+          - "'vllm_server_model: RedHatAI/Qwen3.8-27B-INT4' in vllm_defaults"
+          - "'num_speculative_tokens: 3' in vllm_defaults"
+          - "'device_selector: level_zero:0,1' in vllm_defaults"
+          - "'data_parallel_size: 2' in vllm_defaults"
+          - "'port: 8081' not in vllm_defaults"
+          - "'vllm_server_enable_prefix_caching: false' in vllm_defaults"
+
+    - name: Assert vLLM topology, pinning, and canary safeguards
+      ansible.builtin.assert:
+        that:
+          - "'for instance in vllm_server_instances' in vllm_compose"
+          - "'--tensor-parallel-size' in vllm_compose"
+          - "'--data-parallel-size' in vllm_compose"
+          - "'--data-parallel-backend mp' in vllm_compose"
+          - "'--enforce-eager' in vllm_compose"
+          - "'--mamba-ssm-cache-dtype' in vllm_compose"
+          - "'Verify pinned local vLLM image IDs' in vllm_tasks"
+          - "'check_mode: false' in vllm_tasks"
+          - "'vllm_server_model_files:' in vllm_defaults"
+          - "'sha256sum' in vllm_verify_tasks"
+          - "'vllm_server_content_canary_failure_threshold: 2' in vllm_defaults"
+          - "'docker restart \"$container\"' in canary"
+          - "'[ \"$failures\" -ge \"$failure_threshold\" ]' in canary"
+          - "'canary_instance.name' in vllm_tasks"
+          - >-
+            'ghcr.io/orange-opensource/hurl:8.0.1@sha256:49a02dc39d7084e5a6e8c57e2d4754ef102e4ee3761a02ef6dc0e305ab1a832d'
+            in hurl_playbook
+
+    - name: Assert pinned Intel compute runtime
+      ansible.builtin.assert:
+        that:
+          - "'intel_gpu_compute_runtime_version: 26.18.38308.1-0' in intel_defaults"
+          - "intel_defaults.count('sha256:') == 6"
+          - "'item.sha256' in intel_tasks"
+          - "'intel_gpu_level_zero_version.stdout == intel_gpu_compute_runtime_version' in intel_tasks"
+
+    - name: Check shell content canary syntax
+      ansible.builtin.command:
+        argv:
+          - sh
+          - -n
+          - "{{ root }}/roles/vllm_server/files/vllm_content_canary.sh"
+      changed_when: false
+
+    - name: Check the retired scripts directory
+      ansible.builtin.stat:
+        path: "{{ root }}/scripts"
+      register: retired_scripts_dir
+
+    - name: Find retired Python tests
+      ansible.builtin.find:
+        paths: "{{ root }}/tests"
+        patterns: "*.py"
+        recurse: true
+      register: retired_python
+
+    - name: Assert custom benchmark and test Python projects are absent
+      ansible.builtin.assert:
+        that:
+          - not retired_scripts_dir.stat.exists
+          - retired_python.matched == 0
+
+    - name: Find subjective or retired benchmark artifacts
+      ansible.builtin.find:
+        paths: "{{ root }}/benchmarks"
+        patterns:
+          - "*.md"
+          - "profiles"
+          - "results"
+        file_type: any
+        recurse: true
+      register: retired_benchmark_artifacts
+
+    - name: Assert canonical benchmark suite and lifecycle
+      ansible.builtin.assert:
+        that:
+          - retired_benchmark_artifacts.matched == 0
+          - benchmark_suite.schema_version == 1
+          - benchmark_suite.seed == 0
+          - benchmark_suite.rounds == 3
+          - benchmark_suite.requests_per_concurrency == 5
+          - benchmark_suite.concurrency_levels == [1, 2, 4, 8]
+          - benchmark_suite.output_tps_cv_limit_percent == 5.0
+          - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128']
+          - "'vllm bench serve' in benchmark_round_tasks"
+          - "'--save-detailed' in benchmark_round_tasks"
+          - "'--num-warmups' in benchmark_round_tasks"
+          - "'benchmark_require_clean_git: true' in benchmark_playbook"
+          - "'127.0.0.1' in benchmark_playbook"
+          - "'tasks/restore_vllm_benchmark.yml' in benchmark_playbook"
+          - "'tasks/restore_vllm_benchmark.yml' in benchmark_restore"
+          - "'vllm-content-canary-' in benchmark_restore_tasks"
+          - "'benchmark_production_compose' in benchmark_restore_tasks"
+          - "'benchmark_restored' in benchmark_restore_tasks"
+          - "'/run/secrets/llm_api_key' in benchmark_round_tasks"
+          - "'Config.Env' not in benchmark_playbook"
+
+    - name: Exercise the objective jq aggregation
+      ansible.builtin.command:
+        argv:
+          - jq
+          - --slurp
+          - --arg
+          - run_id
+          - fixture
+          - --arg
+          - suite_sha256
+          - fixture-sha
+          - --argjson
+          - cv_limit
+          - "5"
+          - --argjson
+          - metric_names
+          - '["output_throughput"]'
+          - --from-file
+          - "{{ root }}/benchmarks/aggregate.jq"
+      args:
+        stdin: |-
+          {"case_id":"fixture","input_len":"128","output_len":"256","max_concurrency":1,"round":"1","result_file":"r1.json","completed":5,"failed":0,"output_throughput":100}
+          {"case_id":"fixture","input_len":"128","output_len":"256","max_concurrency":1,"round":"2","result_file":"r2.json","completed":5,"failed":0,"output_throughput":101}
+          {"case_id":"fixture","input_len":"128","output_len":"256","max_concurrency":1,"round":"3","result_file":"r3.json","completed":5,"failed":0,"output_throughput":99}
+      register: benchmark_aggregate_fixture
+      changed_when: false
+
+    - name: Assert objective aggregation output
+      ansible.builtin.assert:
+        that:
+          - (benchmark_aggregate_fixture.stdout | from_json).passed | bool
+          - (benchmark_aggregate_fixture.stdout | from_json).cases[0].metrics.output_throughput.mean == 100
+          - (benchmark_aggregate_fixture.stdout | from_json).cases[0].metrics.output_throughput.median == 100

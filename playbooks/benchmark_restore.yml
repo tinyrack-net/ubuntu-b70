@@ -1,0 +1,22 @@
+---
+- name: Restore production vLLM after an interrupted benchmark
+  hosts: ubuntu
+  gather_facts: false
+  vars:
+    llm_role_defaults: >-
+      {{ lookup('file', playbook_dir ~ '/../roles/llm_runtime/defaults/main.yml') | from_yaml }}
+    benchmark_container_name: >-
+      {{ llm_runtime_vllm_container_name | default(llm_role_defaults.llm_runtime_vllm_container_name) }}
+    benchmark_port: "{{ llm_runtime_port | default(llm_role_defaults.llm_runtime_port) }}"
+    benchmark_compose_project: vllm-server
+    benchmark_production_compose: /opt/vllm-server/compose.yml
+    benchmark_isolated_compose: /opt/vllm-server/compose.benchmark.yml
+  tasks:
+    - name: Restore the normal vLLM service and canary
+      ansible.builtin.include_tasks: tasks/restore_vllm_benchmark.yml
+
+    - name: Assert benchmark restoration succeeded
+      ansible.builtin.assert:
+        that:
+          - benchmark_restored | bool
+        fail_msg: Production vLLM restoration did not complete successfully.

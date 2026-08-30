@@ -1,9 +1,0 @@
----
-vllm_benchmark_profile: tensor_parallel_2
-vllm_server_enable_xpu_graph: false
-vllm_server_gpu_memory_utilization: "0.75"
-vllm_server_instances:
-  - name: vllm-server
-    port: 8080
-    device_selector: "level_zero:*"
-    tensor_parallel_size: 2
