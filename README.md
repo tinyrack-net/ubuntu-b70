@@ -44,8 +44,8 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
   관리하며, `llm_runtime_engine` 값에 따라 playbook이 하나만 실행한다.
 - vLLM 메모리 실패 시 `inventories/host_vars/ubuntu-gpu.yml`에
   `vllm_server_context_size: 16384`를 설정한다.
-- llama.cpp로 롤백하려면 같은 파일에 `llm_runtime_engine: llama_cpp`를 설정한다. 기존
-  GGUF 모델과 Intel SYCL 설정은 그대로 보존된다.
+- llama.cpp로 롤백하려면 같은 파일에 `llm_runtime_engine: llama_cpp`를 설정한다. pinned
+  GGUF 모델은 롤백 적용 시 다시 다운로드하며 Intel SYCL 설정은 그대로 유지된다.
 - llama.cpp의 SYCL 런타임 문제 시 같은 파일에 `llama_server_backend: vulkan`을 설정한다.
 - 방화벽과 TLS는 이 저장소에서 관리하지 않는다.
 
