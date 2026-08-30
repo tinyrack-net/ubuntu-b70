@@ -69,6 +69,35 @@
     mode: "0644"
   become: true
 
+- name: Inspect pinned local vLLM images
+  ansible.builtin.command:
+    argv:
+      - docker
+      - image
+      - inspect
+      - --format={{ '{{' }}.Id{{ '}}' }}
+      - "{{ item.image }}"
+  register: vllm_server_local_image
+  changed_when: false
+  check_mode: false
+  become: true
+  loop: "{{ vllm_server_instances }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.expected_image_id is defined
+
+- name: Verify pinned local vLLM image IDs
+  ansible.builtin.assert:
+    that:
+      - item.stdout == item.item.expected_image_id
+    fail_msg: >-
+      Refusing to start {{ item.item.name }}: local image ID {{ item.stdout | default('missing') }}
+      does not match {{ item.item.expected_image_id }}.
+  loop: "{{ vllm_server_local_image.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name | default('unknown') }}"
+  when: item.item.expected_image_id is defined
+
 - name: Start vLLM Compose project
   community.docker.docker_compose_v2:
     project_src: "{{ vllm_server_install_dir }}"

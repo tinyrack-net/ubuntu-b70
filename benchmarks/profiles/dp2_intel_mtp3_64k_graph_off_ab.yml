@@ -1,0 +1,21 @@
+---
+vllm_benchmark_profile: dp2_intel_mtp3_64k_graph_off_ab
+vllm_benchmark_concurrency_levels: [1, 2, 4, 8]
+vllm_server_context_size: 65536
+vllm_server_kv_cache_dtype: auto
+vllm_server_instances:
+  - name: vllm-server
+    port: 8080
+    device_selector: level_zero:0,1
+    tensor_parallel_size: 1
+    data_parallel_size: 2
+    context_size: 65536
+    max_num_seqs: 4
+    max_num_batched_tokens: 2048
+    kv_cache_dtype: auto
+    enable_xpu_graph: false
+    enable_prefix_caching: false
+    mamba_cache_dtype: auto
+    mamba_ssm_cache_dtype: auto
+    extra_environment: {VLLM_WORKER_MULTIPROC_METHOD: spawn}
+    speculative_config: {method: qwen3_5_mtp, num_speculative_tokens: 3}

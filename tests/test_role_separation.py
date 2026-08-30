@@ -57,7 +57,8 @@ class RoleSeparationTests(unittest.TestCase):
         defaults = (ROOT / "roles/vllm_server/defaults/main.yml").read_text()
         compose = (ROOT / "roles/vllm_server/templates/compose.yml.j2").read_text()
         self.assertIn("vllm_server_max_num_seqs: 4", defaults)
-        self.assertIn("vllm_server_enable_xpu_graph: true", defaults)
+        self.assertIn("vllm_server_context_size: 118784", defaults)
+        self.assertIn("vllm_server_enable_xpu_graph: false", defaults)
         self.assertIn("VLLM_XPU_ENABLE_XPU_GRAPH:", compose)
         self.assertIn("instance_xpu_graph | bool", compose)
 
@@ -83,6 +84,7 @@ class RoleSeparationTests(unittest.TestCase):
 
     def test_vllm_instances_can_override_model_and_tuning(self):
         compose = (ROOT / "roles" / "vllm_server" / "templates" / "compose.yml.j2").read_text()
+        tasks = role_text("vllm_server")
         for key in (
             "instance.model",
             "instance.image",
@@ -95,10 +97,19 @@ class RoleSeparationTests(unittest.TestCase):
             "instance.enable_prefix_caching",
             "instance.attention_backend",
             "instance.speculative_config",
+            "instance.enforce_eager",
+            "instance.compilation_config",
+            "instance.mamba_cache_dtype",
+            "instance.mamba_ssm_cache_dtype",
+            "instance.expected_image_id",
         ):
             self.assertIn(key, compose)
         self.assertIn("--data-parallel-size", compose)
         self.assertIn("--data-parallel-backend mp", compose)
+        self.assertIn("--enforce-eager", compose)
+        self.assertIn("--mamba-ssm-cache-dtype", compose)
+        self.assertIn("Verify pinned local vLLM image IDs", tasks)
+        self.assertIn("check_mode: false", tasks)
 
     def test_vllm_verifies_pinned_model_files(self):
         defaults = (ROOT / "roles" / "vllm_server" / "defaults" / "main.yml").read_text()

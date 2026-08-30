@@ -26,7 +26,7 @@ PROMPT_CASES = (128, 512, 2048)
 GENERATION_CASES = (128, 256)
 REPETITIONS = 5
 CONCURRENCY_REPETITIONS = 3
-CONCURRENCY_LEVELS = (1, 2, 4)
+CONCURRENCY_LEVELS = (1, 2, 4, 8)
 
 
 class BenchmarkError(RuntimeError):
@@ -34,25 +34,42 @@ class BenchmarkError(RuntimeError):
 
 
 def resolve_refs(values: dict[str, Any]) -> dict[str, Any]:
-    resolved = dict(values)
-    for key, value in values.items():
+    def resolve(value: Any, resolving: frozenset[str] = frozenset()) -> Any:
         if isinstance(value, str):
             match = re.fullmatch(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}", value)
-            if match and match.group(1) in values:
-                resolved[key] = values[match.group(1)]
-    return resolved
+            if match and match.group(1) in values and match.group(1) not in resolving:
+                name = match.group(1)
+                return resolve(values[name], resolving | {name})
+            return value
+        if isinstance(value, list):
+            return [resolve(item, resolving) for item in value]
+        if isinstance(value, dict):
+            return {key: resolve(item, resolving) for key, item in value.items()}
+        return value
+
+    return {key: resolve(value, frozenset({key})) for key, value in values.items()}
 
 
 def inventory(profile: str = "inventory") -> dict[str, Any]:
+    defaults_command = ["ansible-inventory", "--host", "ubuntu-gpu"]
+    for role in ("llm_runtime", "llama_server", "vllm_server"):
+        defaults_path = ROOT / "roles" / role / "defaults" / "main.yml"
+        if defaults_path.exists():
+            defaults_command.extend(["-e", f"@{defaults_path}"])
     command = ["ansible-inventory", "--host", "ubuntu-gpu"]
     profile_path = ROOT / "benchmarks" / "profiles" / f"{profile}.yml"
     if profile_path.exists():
         command.extend(["-e", f"@{profile_path}"])
+    defaults_proc = subprocess.run(
+        defaults_command, cwd=ROOT,
+        check=True, capture_output=True, text=True,
+    )
     proc = subprocess.run(
         command, cwd=ROOT,
         check=True, capture_output=True, text=True,
     )
     values = load_role_defaults(ROOT, ("llm_runtime", "llama_server", "vllm_server"))
+    values.update(json.loads(defaults_proc.stdout))
     values.update(json.loads(proc.stdout))
     return resolve_refs(values)
 

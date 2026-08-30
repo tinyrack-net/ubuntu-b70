@@ -15,8 +15,15 @@ services:
 {% set instance_xpu_graph = instance.enable_xpu_graph | default(vllm_server_enable_xpu_graph) %}
 {% set instance_prefix_caching = instance.enable_prefix_caching | default(vllm_server_enable_prefix_caching) %}
 {% set instance_kv_cache_dtype = instance.kv_cache_dtype | default(vllm_server_kv_cache_dtype) %}
+{% set instance_enforce_eager = instance.enforce_eager | default(vllm_server_enforce_eager) %}
+{% set instance_compilation_config = instance.compilation_config | default(vllm_server_compilation_config) %}
+{% set instance_mamba_cache_dtype = instance.mamba_cache_dtype | default(vllm_server_mamba_cache_dtype) %}
+{% set instance_mamba_ssm_cache_dtype = instance.mamba_ssm_cache_dtype | default(vllm_server_mamba_ssm_cache_dtype) %}
   {{ instance.name }}:
     image: "{{ instance_image }}"
+{% if instance.expected_image_id is defined %}
+    pull_policy: never
+{% endif %}
     container_name: "{{ instance.name }}"
     restart: unless-stopped
     ports:
@@ -67,6 +74,18 @@ services:
 {% endif %}
 {% if instance_kv_cache_dtype != 'auto' %}
         --kv-cache-dtype "{{ instance_kv_cache_dtype }}"
+{% endif %}
+{% if instance_enforce_eager | bool %}
+        --enforce-eager
+{% endif %}
+{% if instance_compilation_config | length > 0 %}
+        --compilation-config '{{ instance_compilation_config | to_json if instance_compilation_config is mapping else instance_compilation_config }}'
+{% endif %}
+{% if instance_mamba_cache_dtype != 'auto' %}
+        --mamba-cache-dtype "{{ instance_mamba_cache_dtype }}"
+{% endif %}
+{% if instance_mamba_ssm_cache_dtype != 'auto' %}
+        --mamba-ssm-cache-dtype "{{ instance_mamba_ssm_cache_dtype }}"
 {% endif %}
 {% if instance.speculative_config is defined %}
         --speculative-config '{{ instance.speculative_config | to_json }}'

@@ -1,6 +1,7 @@
 import unittest
 
 from scripts.benchmark_openai import (
+    CONCURRENCY_LEVELS,
     benchmark_environment,
     parse_prometheus,
     percentile,
@@ -12,8 +13,25 @@ from scripts.benchmark_openai import (
 
 
 class BenchmarkOpenAITests(unittest.TestCase):
+    def test_default_concurrency_covers_dp2_capacity(self):
+        self.assertEqual(CONCURRENCY_LEVELS, (1, 2, 4, 8))
+
     def test_resolve_refs(self):
         self.assertEqual(resolve_refs({"key": "{{ vault_key }}", "vault_key": "secret"})["key"], "secret")
+
+    def test_resolve_refs_recurses_into_instance_mappings(self):
+        values = {
+            "llm_runtime_port": 8080,
+            "llm_runtime_vllm_container_name": "vllm-server",
+            "vllm_server_instances": [{
+                "name": "{{ llm_runtime_vllm_container_name }}",
+                "port": "{{ llm_runtime_port }}",
+            }],
+        }
+        self.assertEqual(
+            resolve_refs(values)["vllm_server_instances"],
+            [{"name": "vllm-server", "port": 8080}],
+        )
 
     def test_percentile_interpolates(self):
         self.assertEqual(percentile([1, 2, 3], 50), 2)

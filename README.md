@@ -32,8 +32,9 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 
 ## 운영 설정
 
-- 기본 엔진: Intel vLLM XPU, context 32768, 내부 data parallel 2, rank별 max
-  sequences 4(전체 동시성 8), MTP3, XPU Graph 활성화, prefix caching 비활성화
+- 기본 엔진: Intel vLLM XPU, context 118784, 내부 data parallel 2, rank별 max
+  sequences 4(전체 동시성 8), MTP3, XPU Graph 비활성화, auto KV, prefix caching
+  비활성화
 - `vllm-server`/8080 단일 API가 GPU0·GPU1에 요청을 분산하며 5분 주기의 content
   canary가 적용된다. vLLM의 DP queue 기반 내부 load balancer를 사용하므로 별도의
   프록시는 필요하지 않다.
@@ -71,5 +72,13 @@ Intel runtime, XPU Graph, batching, prefix caching, MTP 1/2/3 및 2-GPU replica�
 기록되어 있다.
 
 128K context 후보는 FP8 KV로 메모리 용량은 확보했지만 Intel MTP3에서 출력이 `!`로
-붕괴해 탈락했다. 운영 기본값은 32768/auto KV를 유지하며 상세 결과는
+붕괴해 탈락했다. 당시 운영 기본값과 상세 결과는
 [`benchmarks/long-context-20260829.md`](benchmarks/long-context-20260829.md)에 기록되어 있다.
+96K/auto KV 후보도 메모리는 충분했지만 24K 이상 입력에서 같은 출력 붕괴가 발생했고,
+32K 설정으로 롤백하면 동일 24K 입력이 정상화되어 운영 승격에서 제외했다.
+GDN hardening과 causal-state OOB backport를 적용한 고정 로컬 이미지도 69,632 context
+반복 검증에서 같은 비유한 logprob/출력 붕괴가 발생해 탈락했다. 후속 Graph ON/OFF
+대조 실험에서는 Graph OFF가 auto KV로 118,784 context까지 marker, 장문 C2 및 혼합
+C8을 OOM/restart/preemption 없이 처리했다. 단일 decode TPS는 Graph ON보다 약 19%
+낮지만 장문 안정성을 우선해 118,784/Graph OFF를 운영 기본값으로 선택했다. 상세 결과는
+[`benchmarks/graph-off-20260830.md`](benchmarks/graph-off-20260830.md)에 기록되어 있다.

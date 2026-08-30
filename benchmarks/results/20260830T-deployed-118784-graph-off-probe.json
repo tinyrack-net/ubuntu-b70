@@ -1,0 +1,57 @@
+{
+  "marker_cases": [
+    {
+      "collapsed_output": false,
+      "e2e_ms": 111006.42647300265,
+      "finish_reason": "stop",
+      "finite_logprobs": true,
+      "marker": "B70_NEEDLE_118528_FRONT_1",
+      "marker_ok": true,
+      "needle_position": "front",
+      "ok": true,
+      "output_tokens": 16,
+      "output_tps": 13.688039684368247,
+      "prompt_tokens": 118528,
+      "prompt_tps": 1079.1212054791517,
+      "reasoning_content_present": false,
+      "repetition": 1,
+      "target_prompt_tokens": 118528,
+      "think_tag_visible": false,
+      "ttft_ms": 109837.52279001055
+    }
+  ],
+  "metadata": {
+    "container_after": {
+      "health": null,
+      "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+      "oom_killed": false,
+      "restart_count": 0,
+      "status": "running"
+    },
+    "container_before": {
+      "health": null,
+      "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+      "oom_killed": false,
+      "restart_count": 0,
+      "status": "running"
+    },
+    "kv_cache_dtype": "auto",
+    "kv_cache_tokens_per_rank": [
+      122496,
+      122496
+    ],
+    "model": "Qwen3.8-27B",
+    "preemptions_delta": 0.0,
+    "profile": "dp2_intel_mtp3_118784_graph_off_ab",
+    "runtime_mode": {
+      "compilation_config": "",
+      "enforce_eager": false,
+      "mamba_cache_dtype": "auto",
+      "mamba_ssm_cache_dtype": "auto",
+      "xpu_graph_enabled": false
+    },
+    "target_context": 118784,
+    "timestamp": "2026-08-30T09:30:48.563167+00:00"
+  },
+  "passed": true
+}

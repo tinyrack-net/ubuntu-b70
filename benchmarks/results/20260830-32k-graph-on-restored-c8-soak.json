@@ -1,0 +1,40 @@
+{
+  "bad_content_samples": [
+    {
+      "content_prefix": "",
+      "finish_reason": "length",
+      "prompt_kind": 3,
+      "reasoning_length": 128
+    }
+  ],
+  "concurrency": 8,
+  "container_after": {
+    "health": null,
+    "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "oom_killed": false,
+    "restart_count": 0,
+    "status": "running"
+  },
+  "container_before": {
+    "health": null,
+    "image_id": "sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "oom_killed": false,
+    "restart_count": 0,
+    "status": "running"
+  },
+  "counts": {
+    "bad_content": 1,
+    "errors": 0,
+    "ok": 50
+  },
+  "duration_s": 60,
+  "latency_ms": {
+    "max": 35450.05978300469,
+    "median": 7577.489150018664
+  },
+  "passed": false,
+  "profile": "inventory",
+  "stable": true,
+  "timestamp": "2026-08-30T09:13:45.653847+00:00",
+  "tool_call_ok": true
+}
