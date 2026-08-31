@@ -60,20 +60,6 @@
         result_file={{ benchmark_run.case.id }}-c{{ benchmark_run.concurrency
         }}-r{{ benchmark_run.round }}.json
 
-- name: Add deterministic multimodal dataset arguments
-  ansible.builtin.set_fact:
-    benchmark_public_argv: >-
-      {{
-        benchmark_public_argv
-        + ['--random-mm-base-items-per-request',
-           benchmark_run.case.mm_items_per_request | string,
-           '--random-mm-num-mm-items-range-ratio', '0',
-           '--random-mm-bucket-config', benchmark_run.case.mm_bucket_config,
-           '--random-mm-limit-mm-per-prompt',
-           benchmark_run.case.limit_mm_per_prompt | to_json]
-      }}
-  when: benchmark_run.case.dataset | default('random') == 'random-mm'
-
 - name: Run the selected benchmark round
   ansible.builtin.command:
     argv:

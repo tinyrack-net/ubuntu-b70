@@ -42,20 +42,6 @@
       - "{{ benchmark_suite.temperature | string }}"
       - --disable-tqdm
 
-- name: Add deterministic multimodal preconditioning arguments
-  ansible.builtin.set_fact:
-    benchmark_public_argv: >-
-      {{
-        benchmark_public_argv
-        + ['--random-mm-base-items-per-request',
-           benchmark_shape.0.mm_items_per_request | string,
-           '--random-mm-num-mm-items-range-ratio', '0',
-           '--random-mm-bucket-config', benchmark_shape.0.mm_bucket_config,
-           '--random-mm-limit-mm-per-prompt',
-           benchmark_shape.0.limit_mm_per_prompt | to_json]
-      }}
-  when: benchmark_shape.0.dataset | default('random') == 'random-mm'
-
 - name: Precondition the selected workload and concurrency shape
   ansible.builtin.command:
     argv:

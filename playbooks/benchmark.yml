@@ -11,6 +11,22 @@
     benchmark_concurrency_levels: []
     benchmark_round_count: 0
   tasks:
+    - name: Validate the requested benchmark profile
+      ansible.builtin.assert:
+        that:
+          - vllm_model_profile is defined
+          - vllm_model_profile is match('^[a-z0-9][a-z0-9.-]*$')
+
+    - name: Load the requested benchmark profile
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../profiles/{{ vllm_model_profile }}/manifest.yml"
+        name: benchmark_profile
+
+    - name: Assert the benchmark profile identity
+      ansible.builtin.assert:
+        that:
+          - benchmark_profile.slug == vllm_model_profile
+
     - name: Load and validate the canonical benchmark suite
       ansible.builtin.set_fact:
         benchmark_suite: "{{ lookup('file', benchmark_suite_path) | from_yaml }}"
@@ -32,8 +48,8 @@
           - benchmark_suite.percentile_metrics == ['ttft', 'tpot', 'itl', 'e2el']
           - benchmark_suite.output_tps_cv_limit_percent == 5.0
           - benchmark_suite.concurrency_levels == [1, 2, 4, 8]
-          - benchmark_suite.cases | length == 4
-          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random', 'random-mm']
+          - benchmark_suite.cases | length == 3
+          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random']
           - benchmark_suite.cases | map(attribute='id') | unique | length == benchmark_suite.cases | length
           - benchmark_suite.cases | map(attribute='input_len') | min > 0
           - benchmark_suite.cases | map(attribute='output_len') | min > 0
@@ -153,8 +169,7 @@
   vars:
     llm_role_defaults: >-
       {{ lookup('file', playbook_dir ~ '/../roles/llm_runtime/defaults/main.yml') | from_yaml }}
-    vllm_role_defaults: >-
-      {{ lookup('file', playbook_dir ~ '/../roles/vllm_server/defaults/main.yml') | from_yaml }}
+    benchmark_profile: "{{ hostvars.localhost.benchmark_profile }}"
     benchmark_suite: "{{ hostvars.localhost.benchmark_suite }}"
     benchmark_runs: "{{ hostvars.localhost.benchmark_runs }}"
     benchmark_run_id: "{{ hostvars.localhost.benchmark_run_id }}"
@@ -170,10 +185,8 @@
     benchmark_container_name: >-
       {{ llm_runtime_vllm_container_name | default(llm_role_defaults.llm_runtime_vllm_container_name) }}
     benchmark_port: "{{ llm_runtime_port | default(llm_role_defaults.llm_runtime_port) }}"
-    benchmark_model: >-
-      {{ vllm_server_served_model_name | default(vllm_role_defaults.vllm_server_served_model_name) }}
-    benchmark_tokenizer: >-
-      {{ vllm_server_tokenizer | default(vllm_role_defaults.vllm_server_tokenizer) }}
+    benchmark_model: "{{ benchmark_profile.served_model_name }}"
+    benchmark_tokenizer: "{{ benchmark_profile.tokenizer.repo }}"
     benchmark_compose_project: vllm-server
     benchmark_production_compose: /opt/vllm-server/compose.yml
     benchmark_isolated_compose: /opt/vllm-server/compose.benchmark.yml
@@ -363,9 +376,9 @@
               - sha256sum
               - >-
                 /root/.cache/huggingface/hub/models--{{
-                vllm_role_defaults.vllm_server_model | replace('/', '--')
-                }}/snapshots/{{ vllm_role_defaults.vllm_server_model_revision }}/{{ item.name }}
-          loop: "{{ vllm_role_defaults.vllm_server_model_files }}"
+                benchmark_profile.model.repo | replace('/', '--')
+                }}/snapshots/{{ benchmark_profile.model.revision }}/{{ item.name }}
+          loop: "{{ benchmark_profile.model.files }}"
           loop_control:
             label: "{{ item.name }}"
           register: benchmark_model_checksum_results
@@ -546,10 +559,11 @@
             production_compose_sha256: "{{ benchmark_compose_stat.stat.checksum | default(null) }}"
             container: "{{ benchmark_container_manifest }}"
             model:
-              id: "{{ vllm_role_defaults.vllm_server_model }}"
-              revision: "{{ vllm_role_defaults.vllm_server_model_revision }}"
+              profile: "{{ benchmark_profile.slug }}"
+              id: "{{ benchmark_profile.model.repo }}"
+              revision: "{{ benchmark_profile.model.revision }}"
               tokenizer: "{{ benchmark_tokenizer }}"
-              tokenizer_revision: "{{ vllm_role_defaults.vllm_server_tokenizer_revision }}"
+              tokenizer_revision: "{{ benchmark_profile.tokenizer.revision }}"
               files: >-
                 {{
                   benchmark_model_checksum_results.results | default([])

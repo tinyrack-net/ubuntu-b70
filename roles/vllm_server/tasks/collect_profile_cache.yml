@@ -1,0 +1,9 @@
+---
+- name: Add repositories declared by {{ known_profile_manifest | dirname | basename }}
+  ansible.builtin.set_fact:
+    vllm_server_known_cache_repos: >-
+      {{ vllm_server_known_cache_repos
+         + [known_profile.model.repo]
+         + ([known_profile.assistant.repo] if known_profile.assistant is defined else []) }}
+  vars:
+    known_profile: "{{ lookup('file', known_profile_manifest) | from_yaml }}"

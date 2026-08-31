@@ -14,9 +14,14 @@
         llama_defaults: "{{ lookup('file', root ~ '/roles/llama_server/defaults/main.yml') }}"
         llama_compose: "{{ lookup('file', root ~ '/roles/llama_server/templates/compose.yml.j2') }}"
         vllm_defaults: "{{ lookup('file', root ~ '/roles/vllm_server/defaults/main.yml') }}"
-        vllm_compose: "{{ lookup('file', root ~ '/roles/vllm_server/templates/compose.yml.j2') }}"
         vllm_tasks: "{{ lookup('file', root ~ '/roles/vllm_server/tasks/main.yml') }}"
-        vllm_verify_tasks: "{{ lookup('file', root ~ '/roles/vllm_server/tasks/verify_model.yml') }}"
+        vllm_prepare_artifact: "{{ lookup('file', root ~ '/roles/vllm_server/tasks/prepare_artifact.yml') }}"
+        vllm_cleanup_cache: "{{ lookup('file', root ~ '/roles/vllm_server/tasks/cleanup_cache.yml') }}"
+        qwen_profile: "{{ lookup('file', root ~ '/profiles/qwen-3.8-27b/manifest.yml') | from_yaml }}"
+        qwen_compose: "{{ lookup('file', root ~ '/profiles/qwen-3.8-27b/compose.yml') }}"
+        gemma_profile: "{{ lookup('file', root ~ '/profiles/gemma-31b/manifest.yml') | from_yaml }}"
+        gemma_compose: "{{ lookup('file', root ~ '/profiles/gemma-31b/compose.yml') }}"
+        makefile: "{{ lookup('file', root ~ '/Makefile') }}"
         intel_defaults: "{{ lookup('file', root ~ '/roles/intel_gpu/defaults/main.yml') }}"
         intel_tasks: "{{ lookup('file', root ~ '/roles/intel_gpu/tasks/main.yml') }}"
         canary: "{{ lookup('file', root ~ '/roles/vllm_server/files/vllm_content_canary.sh') }}"
@@ -31,6 +36,7 @@
           {{ lookup('file', root ~ '/playbooks/tasks/precondition_vllm_benchmark_shape.yml') }}
         benchmark_suite: "{{ lookup('file', root ~ '/benchmarks/suite.yml') | from_yaml }}"
         qwen_xpu_dockerfile: "{{ lookup('file', root ~ '/containers/qwen38-xpu/Dockerfile') }}"
+        gemma_xpu_dockerfile: "{{ lookup('file', root ~ '/containers/gemma4-xpu/Dockerfile') }}"
 
     - name: Read raw Vault ciphertext
       ansible.builtin.slurp:
@@ -60,66 +66,79 @@
           - "\"when: llm_runtime_engine == 'vllm'\" in setup_playbook"
           - "'role: llm_runtime' in setup_playbook"
           - "'vllm_' not in (llama_defaults ~ llama_compose | lower)"
-          - "'llama_model_' not in (vllm_defaults ~ vllm_compose ~ vllm_tasks | lower)"
-          - "'llama_backend' not in (vllm_defaults ~ vllm_compose ~ vllm_tasks | lower)"
+          - "'llama_model_' not in (vllm_defaults ~ vllm_tasks | lower)"
+          - "'llama_backend' not in (vllm_defaults ~ vllm_tasks | lower)"
           - "'llm_runtime_llama_container_name' in llama_compose"
-          - "'instance.name' in vllm_compose"
 
-    - name: Assert pinned Qwen XPU serving configuration
+    - name: Calculate the Gemma runtime patch checksum
+      ansible.builtin.stat:
+        path: "{{ root }}/{{ gemma_profile.image.patch_file }}"
+        checksum_algorithm: sha256
+      register: gemma_runtime_patch
+
+    - name: Assert static model profile configuration
       ansible.builtin.assert:
         that:
-          - "'vllm_server_enable_auto_tool_choice: true' in vllm_defaults"
-          - "'vllm_server_tool_call_parser: qwen3_xml' in vllm_defaults"
-          - "'vllm_server_reasoning_parser: qwen3' in vllm_defaults"
-          - "'--enable-auto-tool-choice' in vllm_compose"
-          - "'vllm_server_tool_call_parser' in vllm_compose"
-          - "'vllm_server_reasoning_parser' in vllm_compose"
-          - "'vllm_server_max_num_seqs: 64' in vllm_defaults"
-          - "'vllm_server_context_size: 131072' in vllm_defaults"
-          - "'vllm_server_enable_xpu_graph: true' in vllm_defaults"
-          - "'vllm_server_image: ubuntu-b70/qwen38-xpu:7025ef4' in vllm_defaults"
-          - "'vllm_server_model: SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16' in vllm_defaults"
-          - "'vllm_server_quantization: gptq' in vllm_defaults"
-          - "'vllm_server_kv_cache_dtype: fp8' in vllm_defaults"
-          - "'num_speculative_tokens: 4' in vllm_defaults"
-          - "'vllm_server_num_speculative_tokens: 4' in vllm_defaults"
-          - "'vllm_server_num_speculative_tokens | int' in vllm_defaults"
-          - "'device_selector: level_zero:0' in vllm_defaults"
-          - "'data_parallel_size: 1' in vllm_defaults"
-          - "'expected_image_id: sha256:2b5d5a7346a801365234acb5eb53754fb0de73e194c7010076013ffa2391f0d7' in vllm_defaults"
-          - "'B70_DRAFT_LMHEAD_INT4' in vllm_defaults"
-          - "'B70_DRAFT_MTP_INT4' in vllm_defaults"
-          - "'port: 8081' not in vllm_defaults"
-          - "'vllm_server_enable_prefix_caching: false' in vllm_defaults"
-          - "'vllm_server_language_model_only: true' in vllm_defaults"
+          - qwen_profile.slug == 'qwen-3.8-27b'
+          - qwen_profile.served_model_name == 'Qwen3.8-27B'
+          - qwen_profile.image.expected_id == 'sha256:2b5d5a7346a801365234acb5eb53754fb0de73e194c7010076013ffa2391f0d7'
+          - qwen_profile.model.revision == 'e28c5f952bdd5d814297a07d85a064a87af26a3f'
+          - qwen_profile.model.files | length == 5
+          - "'--max-model-len 131072' in qwen_compose"
+          - "'--max-num-seqs 64' in qwen_compose"
+          - "'--kv-cache-dtype fp8' in qwen_compose"
+          - "'num_speculative_tokens\":4' in qwen_compose"
+          - "'B70_DRAFT_LMHEAD_INT4' in qwen_compose"
+          - "'B70_DRAFT_MTP_INT4' in qwen_compose"
+          - gemma_profile.slug == 'gemma-31b'
+          - gemma_profile.served_model_name == 'gemma-4-31B-it'
+          - gemma_profile.image.expected_id == 'sha256:7343a52a92d943d5eb3199e6e5e9b74c4d76568556739a4b07b163963feb0297'
+          - gemma_profile.image.patch_sha256 == 'a6f2ae363ebe0473192d21d40131408abe1b08b9f5f488e5c2c647ed553409b2'
+          - gemma_runtime_patch.stat.checksum == gemma_profile.image.patch_sha256
+          - gemma_profile.model.revision == '52f3f65bc7a02d555763bc923bd1d9094898219d'
+          - gemma_profile.assistant.revision == '96d4c8ca3cb38c107a8478587878124895d1e844'
+          - "'--max-model-len 32768' in gemma_compose"
+          - "'--kv-cache-dtype fp8' in gemma_compose"
+          - "'--tool-call-parser gemma4' in gemma_compose"
+          - "'num_speculative_tokens\":4' in gemma_compose"
           - "qwen_xpu_dockerfile is search('FROM vllm/vllm-openai-xpu@sha256:f01e24f6')"
           - "qwen_xpu_dockerfile is search('ADD --checksum=sha256:4d7a02c4')"
           - "qwen_xpu_dockerfile is search('ADD --checksum=sha256:ffae4192')"
           - "qwen_xpu_dockerfile is search('ADD --checksum=sha256:4df179c3')"
+          - "gemma_xpu_dockerfile is search('FROM intel/llm-scaler-vllm:0.21.0-b3.1@sha256:032916bd')"
+          - "'llm-base-proposer-gemma4.patch' in gemma_xpu_dockerfile"
 
-    - name: Assert vLLM topology, pinning, and canary safeguards
+    - name: Validate both static Compose projects
+      ansible.builtin.command:
+        argv: [docker, compose, --project-name, vllm-server, --file, "{{ item }}", config, --quiet]
+      loop:
+        - "{{ root }}/profiles/qwen-3.8-27b/compose.yml"
+        - "{{ root }}/profiles/gemma-31b/compose.yml"
+      changed_when: false
+
+    - name: Assert profile deployment and canary safeguards
       ansible.builtin.assert:
         that:
-          - "'for instance in vllm_server_instances' in vllm_compose"
-          - "'--tensor-parallel-size' in vllm_compose"
-          - "'--data-parallel-size' in vllm_compose"
-          - "'--data-parallel-backend mp' in vllm_compose"
-          - "'--enforce-eager' in vllm_compose"
-          - "'--mamba-ssm-cache-dtype' in vllm_compose"
-          - "'instance_language_model_only' in vllm_compose"
-          - "'--no-language-model-only' in vllm_compose"
-          - "'--limit-mm-per-prompt' in vllm_compose"
-          - "'--mm-processor-kwargs' in vllm_compose"
-          - "'--mm-processor-cache-type' in vllm_compose"
-          - "'--mm-processor-cache-gb' in vllm_compose"
-          - "'Verify pinned local vLLM image IDs' in vllm_tasks"
+          - "'vllm_server_instances' not in vllm_tasks"
+          - "'compose.yml.j2' not in vllm_tasks"
+          - "'Load the selected profile manifest' in vllm_tasks"
+          - "'Deploy the selected profile atomically' in vllm_tasks"
+          - "'Restore the previous production Compose file' in vllm_tasks"
+          - "'Download and verify selected model artifacts before downtime' in vllm_tasks"
+          - "'sha256sum' in vllm_prepare_artifact"
+          - "'vllm_server_cache_low_watermark_gib: 20' in vllm_defaults"
+          - "'vllm_server_cache_target_gib: 30' in vllm_defaults"
           - "'check_mode: false' in vllm_tasks"
-          - "'vllm_server_model_files:' in vllm_defaults"
-          - "'sha256sum' in vllm_verify_tasks"
           - "'vllm_server_content_canary_failure_threshold: 2' in vllm_defaults"
+          - "'vllm-gemma-candidate' in vllm_defaults"
+          - "'Stop and disable retired content canary timers' in vllm_tasks"
+          - "'Reload systemd after retiring content canaries' in vllm_tasks"
           - "'docker restart \"$container\"' in canary"
           - "'[ \"$failures\" -ge \"$failure_threshold\" ]' in canary"
-          - "'canary_instance.name' in vllm_tasks"
+          - "'MODEL is required' in makefile"
+          - "'$(MAKE) verify' in makefile"
+          - "'$(MAKE) ping' in makefile"
+          - "'$(MAKE) check MODEL=$(MODEL)' in makefile"
           - >-
             'ghcr.io/orange-opensource/hurl:8.0.1@sha256:49a02dc39d7084e5a6e8c57e2d4754ef102e4ee3761a02ef6dc0e305ab1a832d'
             in hurl_playbook
@@ -180,11 +199,8 @@
           - benchmark_suite.preconditioning_requests_per_concurrency == 5
           - benchmark_suite.concurrency_levels == [1, 2, 4, 8]
           - benchmark_suite.output_tps_cv_limit_percent == 5.0
-          - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128', 'mm256-pp512-tg128']
-          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random', 'random-mm']
-          - "benchmark_suite.cases[3].limit_mm_per_prompt == {'image': 1, 'video': 0}"
-          - "'--random-mm-base-items-per-request' in benchmark_round_tasks"
-          - "'--random-mm-limit-mm-per-prompt' in benchmark_round_tasks"
+          - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128']
+          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random']
           - "benchmark_round_tasks.count('      - vllm') == 1"
           - "benchmark_round_tasks.count('      - bench') == 1"
           - "benchmark_round_tasks.count('      - serve') == 1"

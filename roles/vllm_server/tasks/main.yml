@@ -1,5 +1,71 @@
 ---
-- name: Check vLLM install directory
+- name: Require an explicit vLLM model profile
+  ansible.builtin.assert:
+    that:
+      - vllm_model_profile is defined
+      - vllm_model_profile is match('^[a-z0-9][a-z0-9.-]*$')
+    fail_msg: Pass a valid profile with MODEL=<slug> (run `make models`).
+
+- name: Locate the selected profile on the controller
+  ansible.builtin.set_fact:
+    vllm_server_profile_dir: "{{ role_path }}/../../profiles/{{ vllm_model_profile }}"
+
+- name: Check the selected profile files
+  ansible.builtin.stat:
+    path: "{{ vllm_server_profile_dir }}/{{ item }}"
+  loop:
+    - manifest.yml
+    - compose.yml
+  register: vllm_server_profile_files
+  delegate_to: localhost
+  become: false
+
+- name: Require a complete selected profile
+  ansible.builtin.assert:
+    that:
+      - vllm_server_profile_files.results | map(attribute='stat.exists') | min
+    fail_msg: "Unknown or incomplete vLLM profile: {{ vllm_model_profile }}"
+
+- name: Load the selected profile manifest
+  ansible.builtin.include_vars:
+    file: "{{ vllm_server_profile_dir }}/manifest.yml"
+    name: vllm_profile
+
+- name: Validate the selected profile manifest
+  ansible.builtin.assert:
+    that:
+      - vllm_profile.slug == vllm_model_profile
+      - vllm_profile.served_model_name | length > 0
+      - vllm_profile.image.ref | length > 0
+      - vllm_profile.image.expected_id is match('^sha256:[0-9a-f]{64}$')
+      - vllm_profile.model.repo | length > 0
+      - vllm_profile.model.revision is match('^[0-9a-f]{40}$')
+      - vllm_profile.model.files | length > 0
+      - vllm_profile.tokenizer.repo | length > 0
+      - vllm_profile.tokenizer.revision is match('^[0-9a-f]{40}$')
+
+- name: Build the selected profile artifact list
+  ansible.builtin.set_fact:
+    vllm_server_profile_artifacts: >-
+      {{ [vllm_profile.model] + ([vllm_profile.assistant] if vllm_profile.assistant is defined else []) }}
+
+- name: Validate the selected static Compose file
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - vllm-server
+      - --file
+      - "{{ vllm_server_profile_dir }}/compose.yml"
+      - config
+      - --quiet
+  changed_when: false
+  check_mode: false
+  delegate_to: localhost
+  become: false
+
+- name: Check the vLLM install directory
   ansible.builtin.stat:
     path: "{{ vllm_server_install_dir }}"
   register: vllm_server_install
@@ -17,133 +83,335 @@
     - {path: "{{ vllm_server_data_dir }}", mode: "0755"}
   become: true
 
-- name: Check legacy vLLM cache
+- name: Check the legacy vLLM cache
   ansible.builtin.stat:
     path: "{{ vllm_server_legacy_hf_cache_dir }}"
   register: vllm_server_legacy_cache
 
-- name: Check vLLM cache destination
+- name: Check the vLLM cache destination
   ansible.builtin.stat:
     path: "{{ vllm_server_hf_cache_dir }}"
   register: vllm_server_cache
 
-- name: Move legacy vLLM cache into the vLLM data directory
+- name: Move the legacy cache into the vLLM data directory
   ansible.builtin.command:
-    argv:
-      - mv
-      - "{{ vllm_server_legacy_hf_cache_dir }}"
-      - "{{ vllm_server_hf_cache_dir }}"
+    argv: [mv, "{{ vllm_server_legacy_hf_cache_dir }}", "{{ vllm_server_hf_cache_dir }}"]
   when:
     - vllm_server_legacy_cache.stat.exists
     - not vllm_server_cache.stat.exists
   become: true
 
-- name: Create vLLM server directories
+- name: Create the vLLM cache directory
   ansible.builtin.file:
-    path: "{{ item.path }}"
+    path: "{{ vllm_server_hf_cache_dir }}"
     state: directory
     owner: root
     group: root
-    mode: "{{ item.mode }}"
-  loop:
-    - {path: "{{ vllm_server_hf_cache_dir }}", mode: "0755"}
+    mode: "0755"
   become: true
 
-- name: Install vLLM API key file
+- name: Install the vLLM API key file
   ansible.builtin.copy:
     content: "{{ llm_api_key }}\n"
     dest: "{{ vllm_server_api_key_path }}"
     owner: root
     group: root
     mode: "0600"
+  register: vllm_server_api_key
   become: true
   no_log: true
-  notify: Restart vllm-server
 
-- name: Render vLLM Compose project
-  ansible.builtin.template:
-    src: compose.yml.j2
+- name: Preview the selected production Compose change
+  ansible.builtin.copy:
+    src: "{{ vllm_server_profile_dir }}/compose.yml"
     dest: "{{ vllm_server_install_dir }}/compose.yml"
     owner: root
     group: root
     mode: "0644"
   become: true
+  when: ansible_check_mode
 
-- name: Inspect pinned local vLLM images
+- name: Pull the selected pinned registry image
   ansible.builtin.command:
-    argv:
-      - docker
-      - image
-      - inspect
-      - --format={{ '{{' }}.Id{{ '}}' }}
-      - "{{ item.image }}"
-  register: vllm_server_local_image
+    argv: [docker, image, pull, "{{ vllm_profile.image.ref }}"]
+  register: vllm_server_image_pull
+  changed_when: "'Downloaded newer image' in vllm_server_image_pull.stdout"
+  become: true
+  when:
+    - not ansible_check_mode
+    - vllm_profile.image.pull | bool
+
+- name: Inspect the selected pinned image
+  ansible.builtin.command:
+    argv: [docker, image, inspect, "--format={{ '{{' }}.Id{{ '}}' }}", "{{ vllm_profile.image.ref }}"]
+  register: vllm_server_image
   changed_when: false
+  failed_when: false
   check_mode: false
   become: true
-  loop: "{{ vllm_server_instances }}"
-  loop_control:
-    label: "{{ item.name }}"
-  when: item.expected_image_id is defined
 
-- name: Verify pinned local vLLM image IDs
+- name: Verify the selected pinned image ID
   ansible.builtin.assert:
     that:
-      - item.stdout == item.item.expected_image_id
+      - vllm_server_image.rc == 0
+      - vllm_server_image.stdout == vllm_profile.image.expected_id
     fail_msg: >-
-      Refusing to start {{ item.item.name }}: local image ID {{ item.stdout | default('missing') }}
-      does not match {{ item.item.expected_image_id }}.
-  loop: "{{ vllm_server_local_image.results | default([]) }}"
+      Pinned image {{ vllm_profile.image.ref }} is missing or does not match
+      {{ vllm_profile.image.expected_id }}.
+  when: not ansible_check_mode or not (vllm_profile.image.pull | bool)
+
+- name: Download and verify selected model artifacts before downtime
+  ansible.builtin.include_tasks: prepare_artifact.yml
+  loop: "{{ vllm_server_profile_artifacts }}"
   loop_control:
-    label: "{{ item.item.name | default('unknown') }}"
-  when: item.item.expected_image_id is defined
+    loop_var: profile_artifact
+    label: "{{ profile_artifact.repo }}"
+  when: not ansible_check_mode
 
-- name: Start vLLM Compose project
-  community.docker.docker_compose_v2:
-    project_src: "{{ vllm_server_install_dir }}"
-    pull: missing
-    state: present
-    wait: false
-    remove_orphans: true
-  become: true
-  when: not ansible_check_mode or vllm_server_install.stat.exists
+- name: Deploy the selected profile atomically
+  when: not ansible_check_mode
+  block:
+    - name: Check the active production Compose file
+      ansible.builtin.stat:
+        path: "{{ vllm_server_install_dir }}/compose.yml"
+      register: vllm_server_active_compose
+      become: true
 
-- name: Apply pending vLLM restart
-  ansible.builtin.meta: flush_handlers
+    - name: Read the active production Compose file
+      ansible.builtin.slurp:
+        src: "{{ vllm_server_install_dir }}/compose.yml"
+      register: vllm_server_active_compose_raw
+      become: true
+      when: vllm_server_active_compose.stat.exists
 
-- name: Wait for vLLM health endpoint
-  ansible.builtin.uri:
-    url: "http://{{ llm_runtime_bind_address }}:{{ item.port }}/health"
-    status_code:
-      - 200
-      - 503
-    return_content: true
-    headers:
-      Authorization: "Bearer {{ llm_api_key }}"
-  register: vllm_server_health
-  until: vllm_server_health.status == 200
-  retries: 180
-  delay: 10
-  no_log: true
-  loop: "{{ vllm_server_instances }}"
+    - name: Check the active profile state
+      ansible.builtin.stat:
+        path: "{{ vllm_server_profile_state_path }}"
+      register: vllm_server_active_state
+      become: true
 
-- name: Verify authenticated vLLM model endpoint
-  ansible.builtin.uri:
-    url: "http://{{ llm_runtime_bind_address }}:{{ item.port }}/v1/models"
-    headers:
-      Authorization: "Bearer {{ llm_api_key }}"
-    status_code: 200
-  no_log: true
-  loop: "{{ vllm_server_instances }}"
+    - name: Read the active profile state
+      ansible.builtin.slurp:
+        src: "{{ vllm_server_profile_state_path }}"
+      register: vllm_server_active_state_raw
+      become: true
+      when: vllm_server_active_state.stat.exists
 
-- name: Verify pinned vLLM model files
-  ansible.builtin.include_tasks: verify_model.yml
-  loop: "{{ vllm_server_instances }}"
-  loop_control:
-    loop_var: model_instance
-    label: "{{ model_instance.name }}"
+    - name: Stage the selected static Compose file
+      ansible.builtin.copy:
+        src: "{{ vllm_server_profile_dir }}/compose.yml"
+        dest: "{{ vllm_server_install_dir }}/compose.next.yml"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
 
-- name: Install vLLM content canary
+    - name: Validate the staged Compose project on the server
+      ansible.builtin.command:
+        argv: [docker, compose, --project-name, vllm-server, --file, "{{ vllm_server_install_dir }}/compose.next.yml", config, --quiet]
+      changed_when: false
+      become: true
+
+    - name: Activate the selected Compose file
+      ansible.builtin.copy:
+        src: "{{ vllm_server_install_dir }}/compose.next.yml"
+        remote_src: true
+        dest: "{{ vllm_server_install_dir }}/compose.yml"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+
+    - name: Start the selected vLLM profile
+      community.docker.docker_compose_v2:
+        project_src: "{{ vllm_server_install_dir }}"
+        pull: missing
+        state: present
+        wait: false
+        remove_orphans: true
+        recreate: "{{ 'always' if vllm_server_api_key.changed else 'auto' }}"
+      become: true
+
+    - name: Wait for the selected vLLM health endpoint
+      ansible.builtin.uri:
+        url: "http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}/health"
+        status_code: 200
+        headers:
+          Authorization: "Bearer {{ llm_api_key }}"
+      register: vllm_server_health
+      until: vllm_server_health.status | default(0) == 200
+      retries: "{{ vllm_server_health_retries }}"
+      delay: "{{ vllm_server_health_delay }}"
+      no_log: true
+
+    - name: Read the selected authenticated model endpoint
+      ansible.builtin.uri:
+        url: "http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}/v1/models"
+        headers:
+          Authorization: "Bearer {{ llm_api_key }}"
+        status_code: 200
+        return_content: true
+      register: vllm_server_models
+      no_log: true
+
+    - name: Verify the selected API model name
+      ansible.builtin.assert:
+        that:
+          - vllm_profile.served_model_name in (vllm_server_models.json.data | map(attribute='id') | list)
+
+    - name: Verify a deterministic generation
+      ansible.builtin.uri:
+        url: "http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}/v1/chat/completions"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ llm_api_key }}"
+        body_format: json
+        body:
+          model: "{{ vllm_profile.served_model_name }}"
+          messages:
+            - role: user
+              content: Reply with exactly PROFILE_OK and nothing else.
+          chat_template_kwargs:
+            enable_thinking: false
+          temperature: 0
+          max_tokens: 128
+        status_code: 200
+        return_content: true
+      register: vllm_server_generation
+      no_log: true
+
+    - name: Assert deterministic generation content
+      ansible.builtin.assert:
+        that:
+          - "'PROFILE_OK' in (vllm_server_generation.json.choices[0].message.content | default(''))"
+
+    - name: Verify a required tool call
+      ansible.builtin.uri:
+        url: "http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}/v1/chat/completions"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ llm_api_key }}"
+        body_format: json
+        body:
+          model: "{{ vllm_profile.served_model_name }}"
+          messages:
+            - role: user
+              content: Call lookup_weather for Seoul. Do not answer directly.
+          tools:
+            - type: function
+              function:
+                name: lookup_weather
+                description: Look up current weather for a city.
+                parameters:
+                  type: object
+                  properties:
+                    city: {type: string}
+                  required: [city]
+          tool_choice: required
+          chat_template_kwargs:
+            enable_thinking: false
+          temperature: 0
+          max_tokens: 128
+        status_code: 200
+        return_content: true
+      register: vllm_server_tool_call
+      no_log: true
+
+    - name: Assert the required tool call name
+      ansible.builtin.assert:
+        that:
+          - vllm_server_tool_call.json.choices[0].message.tool_calls[0].function.name == 'lookup_weather'
+
+    - name: Record the active profile
+      ansible.builtin.copy:
+        content: >-
+          {{ {'schema_version': 1, 'slug': vllm_profile.slug,
+              'served_model_name': vllm_profile.served_model_name,
+              'image_id': vllm_profile.image.expected_id} | to_nice_json }}
+        dest: "{{ vllm_server_profile_state_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+
+  rescue:
+    - name: Stop the failed production Compose project before rollback
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - --project-name
+          - vllm-server
+          - --file
+          - "{{ vllm_server_install_dir }}/compose.yml"
+          - down
+          - --remove-orphans
+      changed_when: true
+      become: true
+
+    - name: Restore the previous production Compose file
+      ansible.builtin.copy:
+        content: "{{ vllm_server_active_compose_raw.content | b64decode }}"
+        dest: "{{ vllm_server_install_dir }}/compose.yml"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      when: vllm_server_active_compose_raw is defined and vllm_server_active_compose_raw.content is defined
+
+    - name: Restart the previous production Compose project
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - --project-name
+          - vllm-server
+          - --file
+          - "{{ vllm_server_install_dir }}/compose.yml"
+          - up
+          - --detach
+          - --force-recreate
+          - --remove-orphans
+      become: true
+      when: vllm_server_active_compose_raw is defined and vllm_server_active_compose_raw.content is defined
+
+    - name: Restore the previous active profile state
+      ansible.builtin.copy:
+        content: "{{ vllm_server_active_state_raw.content | b64decode }}"
+        dest: "{{ vllm_server_profile_state_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+      become: true
+      when: vllm_server_active_state_raw is defined and vllm_server_active_state_raw.content is defined
+
+    - name: Wait for the restored production API
+      ansible.builtin.uri:
+        url: "http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}/health"
+        status_code: 200
+        headers:
+          Authorization: "Bearer {{ llm_api_key }}"
+      register: vllm_server_restored_health
+      until: vllm_server_restored_health.status | default(0) == 200
+      retries: "{{ vllm_server_health_retries }}"
+      delay: "{{ vllm_server_health_delay }}"
+      no_log: true
+      when: vllm_server_active_compose_raw is defined and vllm_server_active_compose_raw.content is defined
+
+    - name: Report the failed profile deployment
+      ansible.builtin.fail:
+        msg: >-
+          Profile {{ vllm_model_profile }} failed during deployment or API verification;
+          the previous production Compose project was restored.
+
+  always:
+    - name: Remove the staged Compose file
+      ansible.builtin.file:
+        path: "{{ vllm_server_install_dir }}/compose.next.yml"
+        state: absent
+      become: true
+
+- name: Install the vLLM content canary
   ansible.builtin.copy:
     src: vllm_content_canary.sh
     dest: /usr/local/libexec/vllm-content-canary
@@ -153,37 +421,20 @@
   become: true
   when: vllm_server_content_canary_enabled | bool
 
-- name: Install vLLM content canary service
+- name: Install the vLLM content canary units
   ansible.builtin.template:
-    src: vllm-content-canary.service.j2
-    dest: "/etc/systemd/system/vllm-content-canary-{{ canary_instance.name }}.service"
+    src: "vllm-content-canary.{{ item }}.j2"
+    dest: "/etc/systemd/system/vllm-content-canary-{{ vllm_server_container_name }}.{{ item }}"
     owner: root
     group: root
     mode: "0644"
+  loop: [service, timer]
   become: true
   when: vllm_server_content_canary_enabled | bool
-  loop: "{{ vllm_server_instances }}"
-  loop_control:
-    loop_var: canary_instance
-    label: "{{ canary_instance.name }}"
 
-- name: Install vLLM content canary timer
-  ansible.builtin.template:
-    src: vllm-content-canary.timer.j2
-    dest: "/etc/systemd/system/vllm-content-canary-{{ canary_instance.name }}.timer"
-    owner: root
-    group: root
-    mode: "0644"
-  become: true
-  when: vllm_server_content_canary_enabled | bool
-  loop: "{{ vllm_server_instances }}"
-  loop_control:
-    loop_var: canary_instance
-    label: "{{ canary_instance.name }}"
-
-- name: Enable vLLM content canary timer
+- name: Enable the vLLM content canary timer
   ansible.builtin.systemd_service:
-    name: "vllm-content-canary-{{ canary_instance.name }}.timer"
+    name: "vllm-content-canary-{{ vllm_server_container_name }}.timer"
     enabled: true
     state: started
     daemon_reload: true
@@ -191,42 +442,30 @@
   when:
     - vllm_server_content_canary_enabled | bool
     - not ansible_check_mode
-  loop: "{{ vllm_server_instances }}"
-  loop_control:
-    loop_var: canary_instance
-    label: "{{ canary_instance.name }}"
 
-- name: Disable legacy single-instance vLLM content canary timer
-  ansible.builtin.systemd_service:
-    name: vllm-content-canary.timer
-    enabled: false
-    state: stopped
-  become: true
-  failed_when: false
-  when: not ansible_check_mode
-
-- name: Remove legacy single-instance vLLM content canary units
-  ansible.builtin.file:
-    path: "/etc/systemd/system/{{ item }}"
-    state: absent
-  loop:
-    - vllm-content-canary.service
-    - vllm-content-canary.timer
-  become: true
-
-- name: Disable retired per-instance vLLM content canary timers
+- name: Stop and disable retired content canary timers
   ansible.builtin.systemd_service:
     name: "vllm-content-canary-{{ item }}.timer"
     enabled: false
     state: stopped
   loop: "{{ vllm_server_retired_content_canary_instances }}"
-  become: true
   failed_when: false
+  become: true
   when: not ansible_check_mode
 
-- name: Remove retired per-instance vLLM content canary units
+- name: Remove retired content canary units
   ansible.builtin.file:
     path: "/etc/systemd/system/vllm-content-canary-{{ item.0 }}.{{ item.1 }}"
     state: absent
   loop: "{{ vllm_server_retired_content_canary_instances | product(['service', 'timer']) | list }}"
   become: true
+
+- name: Reload systemd after retiring content canaries
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  become: true
+  when: not ansible_check_mode
+
+- name: Enforce the profile model-cache watermark
+  ansible.builtin.include_tasks: cleanup_cache.yml
+  when: not ansible_check_mode

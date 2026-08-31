@@ -1,0 +1,56 @@
+---
+- name: Initialize the known profile cache list
+  ansible.builtin.set_fact:
+    vllm_server_known_cache_repos: []
+
+- name: Find every model profile manifest on the controller
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/../profiles"
+    patterns: manifest.yml
+    file_type: file
+    recurse: true
+  register: vllm_server_profile_manifests
+  delegate_to: localhost
+  become: false
+
+- name: Collect model repositories from every profile
+  ansible.builtin.include_tasks: collect_profile_cache.yml
+  loop: "{{ vllm_server_profile_manifests.files | map(attribute='path') | list }}"
+  loop_control:
+    loop_var: known_profile_manifest
+
+- name: Select inactive known profile caches
+  ansible.builtin.set_fact:
+    vllm_server_active_cache_repos: >-
+      {{ [vllm_profile.model.repo] + ([vllm_profile.assistant.repo] if vllm_profile.assistant is defined else []) }}
+    vllm_server_inactive_cache_repos: >-
+      {{ vllm_server_known_cache_repos | unique | difference(
+         [vllm_profile.model.repo] + ([vllm_profile.assistant.repo] if vllm_profile.assistant is defined else [])) }}
+
+- name: Read available model-cache filesystem bytes
+  ansible.builtin.command:
+    argv: [df, --output=avail, --block-size=1, "{{ vllm_server_hf_cache_dir }}"]
+  register: vllm_server_cache_df
+  changed_when: false
+
+- name: Initialize cache cleanup state
+  ansible.builtin.set_fact:
+    vllm_server_cache_free_bytes: "{{ vllm_server_cache_df.stdout_lines[-1] | trim | int }}"
+    vllm_server_cache_cleanup_required: >-
+      {{ (vllm_server_cache_df.stdout_lines[-1] | trim | int)
+         < (vllm_server_cache_low_watermark_gib | int * 1024 * 1024 * 1024) }}
+
+- name: Inspect inactive known profile caches
+  ansible.builtin.stat:
+    path: "{{ vllm_server_hf_cache_dir }}/hub/models--{{ item | replace('/', '--') }}"
+  loop: "{{ vllm_server_inactive_cache_repos }}"
+  register: vllm_server_inactive_cache_stats
+
+- name: Remove old inactive caches until the target is met
+  ansible.builtin.include_tasks: remove_profile_cache.yml
+  loop: >-
+    {{ vllm_server_inactive_cache_stats.results | selectattr('stat.exists')
+       | sort(attribute='stat.mtime') | list }}
+  loop_control:
+    loop_var: inactive_cache
+    label: "{{ inactive_cache.item }}"

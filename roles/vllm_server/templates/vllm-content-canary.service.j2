@@ -1,11 +1,11 @@
 [Unit]
-Description=vLLM content correctness canary for {{ canary_instance.name }}
+Description=vLLM content correctness canary for {{ vllm_server_container_name }}
 After=docker.service
 Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/libexec/vllm-content-canary --base-url http://{{ llm_runtime_bind_address }}:{{ canary_instance.port }} --api-key-file {{ vllm_server_api_key_path }} --container {{ canary_instance.name }} --marker {{ vllm_server_content_canary_marker }} --failure-threshold {{ vllm_server_content_canary_failure_threshold }} --state-file /run/vllm-content-canary-{{ canary_instance.name }}.failures
+ExecStart=/usr/local/libexec/vllm-content-canary --base-url http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }} --api-key-file {{ vllm_server_api_key_path }} --container {{ vllm_server_container_name }} --marker {{ vllm_server_content_canary_marker }} --failure-threshold {{ vllm_server_content_canary_failure_threshold }} --state-file /run/vllm-content-canary-{{ vllm_server_container_name }}.failures
 User=root
 Group=root
 PrivateTmp=true

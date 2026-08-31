@@ -1,0 +1,24 @@
+---
+slug: qwen-3.8-27b
+served_model_name: Qwen3.8-27B
+image:
+  ref: ubuntu-b70/qwen38-xpu:7025ef4
+  expected_id: sha256:2b5d5a7346a801365234acb5eb53754fb0de73e194c7010076013ffa2391f0d7
+  pull: false
+model:
+  repo: SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16
+  revision: e28c5f952bdd5d814297a07d85a064a87af26a3f
+  files:
+    - name: model-00001-of-00005.safetensors
+      sha256: 30c8e2b1c82cdcc840848b5c98bafe2f74269b1e6472a053ce7d7b2d002f39a7
+    - name: model-00002-of-00005.safetensors
+      sha256: ff66eaf6ecc6e4b214f281ac532dcfcb07c60d5a8c78cf145bc93c38c00c024e
+    - name: model-00003-of-00005.safetensors
+      sha256: 15284cb88d52ea1648b4fcc68901286d7c4795388e05ae1e143c8026fcb0be44
+    - name: model-00004-of-00005.safetensors
+      sha256: 878ae6ebc9553de5340df0d6097aa319f58650382c89e474b39d0c0a98e76932
+    - name: model-00005-of-00005.safetensors
+      sha256: 2a6ebd04c77c2d5ce5952ca81a4197f1c34f712a00c293a25242ec27ac413729
+tokenizer:
+  repo: SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16
+  revision: e28c5f952bdd5d814297a07d85a064a87af26a3f

@@ -1,0 +1,23 @@
+---
+- name: Remove inactive cache {{ inactive_cache.item }}
+  ansible.builtin.file:
+    path: "{{ inactive_cache.stat.path }}"
+    state: absent
+  become: true
+  when:
+    - vllm_server_cache_cleanup_required | bool
+    - vllm_server_cache_free_bytes | int < (vllm_server_cache_target_gib | int * 1024 * 1024 * 1024)
+
+- name: Refresh available bytes after removing {{ inactive_cache.item }}
+  ansible.builtin.command:
+    argv: [df, --output=avail, --block-size=1, "{{ vllm_server_hf_cache_dir }}"]
+  register: vllm_server_cache_df_after
+  changed_when: false
+  when:
+    - vllm_server_cache_cleanup_required | bool
+    - vllm_server_cache_free_bytes | int < (vllm_server_cache_target_gib | int * 1024 * 1024 * 1024)
+
+- name: Update available cache bytes
+  ansible.builtin.set_fact:
+    vllm_server_cache_free_bytes: "{{ vllm_server_cache_df_after.stdout_lines[-1] | trim | int }}"
+  when: not (vllm_server_cache_df_after.skipped | default(false))

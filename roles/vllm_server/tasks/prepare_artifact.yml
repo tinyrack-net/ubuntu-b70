@@ -1,0 +1,46 @@
+---
+- name: Download pinned model artifact for {{ profile_artifact.repo }}
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - --volume
+      - "{{ vllm_server_hf_cache_dir }}:/root/.cache/huggingface"
+      - --env
+      - "PROFILE_REPO={{ profile_artifact.repo }}"
+      - --env
+      - "PROFILE_REVISION={{ profile_artifact.revision }}"
+      - --entrypoint
+      - /opt/venv/bin/python
+      - "{{ vllm_profile.image.ref }}"
+      - -c
+      - >-
+        import os; from huggingface_hub import snapshot_download;
+        snapshot_download(repo_id=os.environ['PROFILE_REPO'], revision=os.environ['PROFILE_REVISION'])
+  changed_when: false
+  become: true
+
+- name: Calculate pinned model checksums for {{ profile_artifact.repo }}
+  ansible.builtin.command:
+    argv:
+      - sha256sum
+      - >-
+        {{ vllm_server_hf_cache_dir }}/hub/models--{{ profile_artifact.repo | replace('/', '--')
+        }}/snapshots/{{ profile_artifact.revision }}/{{ artifact_file.name }}
+  loop: "{{ profile_artifact.files }}"
+  loop_control:
+    loop_var: artifact_file
+    label: "{{ artifact_file.name }}"
+  register: vllm_server_artifact_checksums
+  changed_when: false
+  become: true
+
+- name: Verify pinned model checksums for {{ profile_artifact.repo }}
+  ansible.builtin.assert:
+    that:
+      - item.stdout.split()[0] == item.artifact_file.sha256
+    fail_msg: "Pinned checksum mismatch for {{ profile_artifact.repo }}/{{ item.artifact_file.name }}"
+  loop: "{{ vllm_server_artifact_checksums.results }}"
+  loop_control:
+    label: "{{ item.artifact_file.name }}"

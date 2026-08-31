@@ -5,18 +5,24 @@
   vars:
     llm_role_defaults: >-
       {{ lookup('file', playbook_dir ~ '/../roles/llm_runtime/defaults/main.yml') | from_yaml }}
-    vllm_role_defaults: >-
-      {{ lookup('file', playbook_dir ~ '/../roles/vllm_server/defaults/main.yml') | from_yaml }}
+    api_test_profile_path: "{{ playbook_dir }}/../profiles/{{ vllm_model_profile }}/manifest.yml"
+    api_test_profile: "{{ lookup('file', api_test_profile_path) | from_yaml }}"
     api_test_bind_address: >-
       {{ llm_runtime_bind_address | default(llm_role_defaults.llm_runtime_bind_address) }}
     api_test_port: "{{ llm_runtime_port | default(llm_role_defaults.llm_runtime_port) }}"
-    api_test_model: >-
-      {{ vllm_server_served_model_name | default(vllm_role_defaults.vllm_server_served_model_name) }}
+    api_test_model: "{{ api_test_profile.served_model_name }}"
     hurl_image: >-
       ghcr.io/orange-opensource/hurl:8.0.1@sha256:49a02dc39d7084e5a6e8c57e2d4754ef102e4ee3761a02ef6dc0e305ab1a832d
     api_test_dir: "{{ playbook_dir }}/../tests/api"
     api_test_jobs: 1
   tasks:
+    - name: Validate the requested API test profile
+      ansible.builtin.assert:
+        that:
+          - vllm_model_profile is defined
+          - vllm_model_profile is match('^[a-z0-9][a-z0-9.-]*$')
+          - api_test_profile.slug == vllm_model_profile
+
     - name: Run Hurl tests with temporary credentials
       block:
         - name: Create local Hurl variable directory

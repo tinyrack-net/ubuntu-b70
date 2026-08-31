@@ -1,0 +1,46 @@
+---
+services:
+  vllm-server:
+    image: ubuntu-b70/gemma4-xpu:b3.1-mtp-embedding
+    pull_policy: missing
+    container_name: vllm-server
+    restart: unless-stopped
+    ports:
+      - "10.132.247.37:8080:8080"
+    devices:
+      - "/dev/dri:/dev/dri"
+    ipc: host
+    privileged: true
+    environment:
+      ONEAPI_DEVICE_SELECTOR: level_zero:0
+      VLLM_XPU_ENABLE_XPU_GRAPH: "1"
+      VLLM_WORKER_MULTIPROC_METHOD: spawn
+    volumes:
+      - "/etc/vllm-server/api-key:/run/secrets/llm_api_key:ro"
+      - "/var/lib/vllm-server/huggingface:/root/.cache/huggingface"
+      - "/dev/dri/by-path:/dev/dri/by-path:ro"
+    entrypoint: [/bin/bash, -lc]
+    command:
+      - >-
+        export VLLM_API_KEY="$$(cat /run/secrets/llm_api_key)";
+        exec vllm serve "google/gemma-4-31B-it-qat-w4a16-ct"
+        --revision "52f3f65bc7a02d555763bc923bd1d9094898219d"
+        --tokenizer "google/gemma-4-31B-it-qat-w4a16-ct"
+        --tokenizer-revision "52f3f65bc7a02d555763bc923bd1d9094898219d"
+        --served-model-name "gemma-4-31B-it"
+        --language-model-only
+        --host 0.0.0.0 --port 8080
+        --dtype float16
+        --trust-remote-code
+        --block-size 64
+        --max-model-len 32768
+        --max-num-seqs 1
+        --max-num-batched-tokens 8192
+        --gpu-memory-utilization 0.92
+        --no-enable-prefix-caching
+        --kv-cache-dtype fp8
+        --speculative-config '{"method":"mtp","model":"google/gemma-4-31B-it-qat-q4_0-unquantized-assistant","num_speculative_tokens":4}'
+        --enable-auto-tool-choice
+        --tool-call-parser gemma4
+        --reasoning-parser gemma4
+        --generation-config vllm

@@ -1,0 +1,24 @@
+---
+slug: gemma-31b
+served_model_name: gemma-4-31B-it
+image:
+  ref: ubuntu-b70/gemma4-xpu:b3.1-mtp-embedding
+  expected_id: sha256:7343a52a92d943d5eb3199e6e5e9b74c4d76568556739a4b07b163963feb0297
+  pull: false
+  patch_file: containers/gemma4-xpu/llm-base-proposer-gemma4.patch
+  patch_sha256: a6f2ae363ebe0473192d21d40131408abe1b08b9f5f488e5c2c647ed553409b2
+model:
+  repo: google/gemma-4-31B-it-qat-w4a16-ct
+  revision: 52f3f65bc7a02d555763bc923bd1d9094898219d
+  files:
+    - name: model.safetensors
+      sha256: 1b9b1d622a93f02c0d33f98e502f233b5d707443af6ddc464ed0bf5498506c20
+assistant:
+  repo: google/gemma-4-31B-it-qat-q4_0-unquantized-assistant
+  revision: 96d4c8ca3cb38c107a8478587878124895d1e844
+  files:
+    - name: model.safetensors
+      sha256: 50008e854554a1a9c26317216cd99ae5a3567d4942c9e061398b995cc48c34b9
+tokenizer:
+  repo: google/gemma-4-31B-it-qat-w4a16-ct
+  revision: 52f3f65bc7a02d555763bc923bd1d9094898219d
