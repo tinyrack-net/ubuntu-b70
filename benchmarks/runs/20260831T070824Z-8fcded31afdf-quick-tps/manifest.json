@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "run_id": "20260831T070824Z-8fcded31afdf-quick-tps",
+  "git_sha": "8fcded31afdf290b21c7f6b7a3197d30f86fd098",
+  "status": "completed",
+  "scope": "rapid C1 screening; no stability or long-context validation",
+  "host": "ubuntu-gpu",
+  "model": "SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16",
+  "model_revision": "e28c5f952bdd5d814297a07d85a064a87af26a3f",
+  "base_image": "vllm/vllm-openai-xpu@sha256:f01e24f6c7ff01f1e0662234255a1372297d1dbd89d003cf13c8fad3eab1ba4f",
+  "local_image": "ubuntu-b70/qwen38-xpu:7025ef4",
+  "local_image_id": "sha256:2b5d5a7346a801365234acb5eb53754fb0de73e194c7010076013ffa2391f0d7",
+  "common": {
+    "context": 131072,
+    "kv_cache_dtype": "fp8",
+    "max_num_batched_tokens": 8192,
+    "prefix_caching": false,
+    "text_only": true,
+    "temperature": 0,
+    "seed": 0,
+    "concurrency": 1,
+    "repetitions": 3
+  },
+  "benchmark_argv": "vllm bench serve --backend openai-chat --endpoint /v1/chat/completions --dataset-name random --random-input-len 512 --random-output-len <128|256> --random-range-ratio 0 --num-prompts 1 --num-warmups 0 --max-concurrency 1 --request-rate inf --seed 0 --ignore-eos --temperature 0 --save-result --save-detailed",
+  "raw_results_host_path": "/home/winetree94/quick-tps",
+  "selected_candidate": "tp1-draft-int4-mtp4-graph-on",
+  "humble_int8_tp2": {
+    "status": "not_executed",
+    "repository_commit": "1b309efc",
+    "vllm_base_commit": "8e6d8e4f6a0c84db0d79129ab648492edf640fe2",
+    "xpu_kernels_base_commit": "27214a3d99c8c4f60f4a15ecb7d3c2febef5bc57",
+    "reason": "The INT8 target-head path requires a separate vLLM and XPU-kernels source build with the oneAPI 2026.1 compiler; it is not compatible as a runtime patch on the pinned f01 image. The published Humble result also uses a different AutoRound checkpoint. Neither benchmark host had the required compiler for the approved rapid same-model screen."
+  },
+  "deployed_restart_count_before_apply": 0
+}

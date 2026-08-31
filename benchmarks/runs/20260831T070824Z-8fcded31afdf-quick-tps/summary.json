@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "metric": "vllm output_throughput tok/s",
+  "baseline_output_tps": 41.2258,
+  "candidates": [
+    {
+      "id": "tp1-bf16-mtp4-graph-on-p512-g128",
+      "median_output_tps": 34.26726998272092,
+      "median_ttft_ms": 386.78235999759636,
+      "median_tpot_ms": 20.724012740160337,
+      "output_tps": [34.26726998272092, 26.826777459116634, 42.39677202401156],
+      "failed_requests": 0
+    },
+    {
+      "id": "tp1-draft-int4-mtp4-graph-on-p512-g128",
+      "median_output_tps": 59.650837013116835,
+      "median_ttft_ms": 360.06624899891904,
+      "median_tpot_ms": 14.056881496054396,
+      "median_acceptance_rate_pct": 48.29545454545455,
+      "output_tps": [59.650837013116835, 59.65816379246293, 59.6103147795988],
+      "failed_requests": 0
+    },
+    {
+      "id": "tp2-draft-int4-mtp3-graph-off-p512-g128",
+      "median_output_tps": 32.926491122402645,
+      "median_ttft_ms": 276.61003500179504,
+      "median_tpot_ms": 28.447525354327293,
+      "output_tps": [24.605075968661122, 33.06490978664105, 32.926491122402645],
+      "failed_requests": 0
+    },
+    {
+      "id": "tp2-draft-int4-mtp4-graph-off-p512-g128",
+      "median_output_tps": 33.37900826423589,
+      "median_ttft_ms": 276.2099789979402,
+      "median_tpot_ms": 28.01726366142677,
+      "output_tps": [23.111101423719713, 34.038917816978206, 33.37900826423589],
+      "failed_requests": 0
+    },
+    {
+      "id": "tp1-draft-int4-mtp4-graph-on-p512-g256",
+      "median_output_tps": 64.59021959743207,
+      "median_ttft_ms": 357.31888200098183,
+      "median_tpot_ms": 14.140270764704946,
+      "post_first_tps_from_median_tpot": 70.72000364349927,
+      "output_tps": [51.627476548692556, 64.59021959743207, 64.63329105972547],
+      "failed_requests": 0
+    }
+  ],
+  "high_acceptance_probe": {
+    "shape": "natural repetitive list, 256 output tokens, C1",
+    "post_first_tps": [102.364458623211, 99.24616532072902, 102.27180761947538],
+    "median_post_first_tps": 102.27180761947538
+  },
+  "selected": "tp1-draft-int4-mtp4-graph-on",
+  "selected_p512_g256_gain_vs_baseline_pct": 56.67431674267108
+}

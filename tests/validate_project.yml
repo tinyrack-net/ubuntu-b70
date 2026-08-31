@@ -30,6 +30,7 @@
         benchmark_precondition_tasks: >-
           {{ lookup('file', root ~ '/playbooks/tasks/precondition_vllm_benchmark_shape.yml') }}
         benchmark_suite: "{{ lookup('file', root ~ '/benchmarks/suite.yml') | from_yaml }}"
+        qwen_xpu_dockerfile: "{{ lookup('file', root ~ '/containers/qwen38-xpu/Dockerfile') }}"
 
     - name: Read raw Vault ciphertext
       ansible.builtin.slurp:
@@ -73,21 +74,28 @@
           - "'--enable-auto-tool-choice' in vllm_compose"
           - "'vllm_server_tool_call_parser' in vllm_compose"
           - "'vllm_server_reasoning_parser' in vllm_compose"
-          - "'vllm_server_max_num_seqs: 4' in vllm_defaults"
+          - "'vllm_server_max_num_seqs: 64' in vllm_defaults"
           - "'vllm_server_context_size: 131072' in vllm_defaults"
-          - "'vllm_server_enable_xpu_graph: false' in vllm_defaults"
-          - "'intel/llm-scaler-vllm:0.21.0-b3.1@sha256:' in vllm_defaults"
+          - "'vllm_server_enable_xpu_graph: true' in vllm_defaults"
+          - "'vllm_server_image: ubuntu-b70/qwen38-xpu:7025ef4' in vllm_defaults"
           - "'vllm_server_model: SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16' in vllm_defaults"
           - "'vllm_server_quantization: gptq' in vllm_defaults"
           - "'vllm_server_kv_cache_dtype: fp8' in vllm_defaults"
-          - "'num_speculative_tokens: 3' in vllm_defaults"
-          - "'vllm_server_num_speculative_tokens: 3' in vllm_defaults"
+          - "'num_speculative_tokens: 4' in vllm_defaults"
+          - "'vllm_server_num_speculative_tokens: 4' in vllm_defaults"
           - "'vllm_server_num_speculative_tokens | int' in vllm_defaults"
-          - "'device_selector: level_zero:0,1' in vllm_defaults"
-          - "'data_parallel_size: 2' in vllm_defaults"
+          - "'device_selector: level_zero:0' in vllm_defaults"
+          - "'data_parallel_size: 1' in vllm_defaults"
+          - "'expected_image_id: sha256:2b5d5a7346a801365234acb5eb53754fb0de73e194c7010076013ffa2391f0d7' in vllm_defaults"
+          - "'B70_DRAFT_LMHEAD_INT4' in vllm_defaults"
+          - "'B70_DRAFT_MTP_INT4' in vllm_defaults"
           - "'port: 8081' not in vllm_defaults"
           - "'vllm_server_enable_prefix_caching: false' in vllm_defaults"
-          - "'vllm_server_language_model_only: false' in vllm_defaults"
+          - "'vllm_server_language_model_only: true' in vllm_defaults"
+          - "qwen_xpu_dockerfile is search('FROM vllm/vllm-openai-xpu@sha256:f01e24f6')"
+          - "qwen_xpu_dockerfile is search('ADD --checksum=sha256:4d7a02c4')"
+          - "qwen_xpu_dockerfile is search('ADD --checksum=sha256:ffae4192')"
+          - "qwen_xpu_dockerfile is search('ADD --checksum=sha256:4df179c3')"
 
     - name: Assert vLLM topology, pinning, and canary safeguards
       ansible.builtin.assert:

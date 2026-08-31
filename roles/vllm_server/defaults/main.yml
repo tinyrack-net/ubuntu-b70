@@ -5,8 +5,7 @@ vllm_server_data_dir: /var/lib/vllm-server
 vllm_server_hf_cache_dir: "{{ vllm_server_data_dir }}/huggingface"
 vllm_server_legacy_hf_cache_dir: /var/lib/llama-server/huggingface
 
-vllm_server_image: >-
-  intel/llm-scaler-vllm:0.21.0-b3.1@sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b
+vllm_server_image: ubuntu-b70/qwen38-xpu:7025ef4
 vllm_server_model: SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16
 vllm_server_model_revision: e28c5f952bdd5d814297a07d85a064a87af26a3f
 vllm_server_model_files:
@@ -24,7 +23,7 @@ vllm_server_tokenizer: SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16
 vllm_server_tokenizer_revision: e28c5f952bdd5d814297a07d85a064a87af26a3f
 vllm_server_quantization: gptq
 vllm_server_served_model_name: Qwen3.8-27B
-vllm_server_language_model_only: false
+vllm_server_language_model_only: true
 vllm_server_limit_mm_per_prompt:
   image: 1
   video: 0
@@ -34,13 +33,13 @@ vllm_server_mm_processor_kwargs:
 vllm_server_mm_processor_cache_type: shm
 vllm_server_mm_processor_cache_gb: "1"
 vllm_server_context_size: 131072
-vllm_server_max_num_seqs: 4
-vllm_server_max_num_batched_tokens: 2048
-vllm_server_num_speculative_tokens: 3
+vllm_server_max_num_seqs: 64
+vllm_server_max_num_batched_tokens: 8192
+vllm_server_num_speculative_tokens: 4
 vllm_server_data_parallel_size: 1
-vllm_server_gpu_memory_utilization: "0.92"
+vllm_server_gpu_memory_utilization: "0.88"
 vllm_server_kv_cache_dtype: fp8
-vllm_server_enable_xpu_graph: false
+vllm_server_enable_xpu_graph: true
 vllm_server_enable_prefix_caching: false
 vllm_server_enforce_eager: false
 vllm_server_compilation_config: ""
@@ -58,12 +57,17 @@ vllm_server_retired_content_canary_instances:
 vllm_server_instances:
   - name: "{{ llm_runtime_vllm_container_name }}"
     port: "{{ llm_runtime_port }}"
-    device_selector: level_zero:0,1
+    image: ubuntu-b70/qwen38-xpu:7025ef4
+    expected_image_id: sha256:2b5d5a7346a801365234acb5eb53754fb0de73e194c7010076013ffa2391f0d7
+    device_selector: level_zero:0
     tensor_parallel_size: 1
-    data_parallel_size: 2
-    max_num_seqs: 4
+    data_parallel_size: 1
+    max_num_seqs: 64
     extra_environment:
       VLLM_WORKER_MULTIPROC_METHOD: spawn
+      B70_MTP_BF16_DRAFT: "1"
+      B70_DRAFT_LMHEAD_INT4: "1"
+      B70_DRAFT_MTP_INT4: "1"
     speculative_config:
-      method: qwen3_5_mtp
+      method: mtp
       num_speculative_tokens: "{{ vllm_server_num_speculative_tokens | int }}"
