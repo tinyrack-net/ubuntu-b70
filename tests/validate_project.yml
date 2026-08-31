@@ -168,9 +168,8 @@
           - benchmark_suite.preconditioning_requests_per_concurrency == 5
           - benchmark_suite.concurrency_levels == [1, 2, 4, 8]
           - benchmark_suite.output_tps_cv_limit_percent == 5.0
-          - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128', 'mm256-pp512-tg128']
-          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random', 'random-mm']
-          - "benchmark_suite.cases[3].limit_mm_per_prompt == {'image': 1, 'video': 0}"
+          - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128']
+          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random']
           - "'--random-mm-base-items-per-request' in benchmark_round_tasks"
           - "'--random-mm-limit-mm-per-prompt' in benchmark_round_tasks"
           - "benchmark_round_tasks.count('      - vllm') == 1"

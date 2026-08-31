@@ -28,8 +28,8 @@
           - benchmark_suite.percentile_metrics == ['ttft', 'tpot', 'itl', 'e2el']
           - benchmark_suite.output_tps_cv_limit_percent == 5.0
           - benchmark_suite.concurrency_levels == [1, 2, 4, 8]
-          - benchmark_suite.cases | length == 4
-          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random', 'random-mm']
+          - benchmark_suite.cases | length == 3
+          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random']
           - benchmark_suite.cases | map(attribute='id') | unique | length == benchmark_suite.cases | length
           - benchmark_suite.cases | map(attribute='input_len') | min > 0
           - benchmark_suite.cases | map(attribute='output_len') | min > 0

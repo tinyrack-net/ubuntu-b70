@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "run_type": "vision-128k-candidate-screening",
+  "git_commit": "51c174f",
+  "started_at": "2026-08-31T00:03:04Z",
+  "finished_at": "2026-08-31T01:02:03Z",
+  "runtime": {
+    "image": "intel/llm-scaler-vllm:0.21.0-b3.1@sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "vllm_version": "0.21.1.dev0+gad7125a43.d20260812",
+    "data_parallel_size": 2,
+    "max_num_seqs_per_rank": 4,
+    "num_speculative_tokens": 3,
+    "xpu_graph": false,
+    "prefix_caching": false,
+    "max_num_batched_tokens": 2048,
+    "gpu_memory_utilization": 0.92,
+    "limit_mm_per_prompt": {"image": 1, "video": 0},
+    "mm_processor_kwargs": {"max_pixels": 1048576, "min_pixels": 65536},
+    "mm_processor_cache": {"type": "shm", "gb": 1}
+  },
+  "baseline": {
+    "model": "RedHatAI/Qwen3.8-27B-INT4",
+    "revision": "2fb0debc365fb6c1683d7d3ad7722470919627a8",
+    "context_size": 118784,
+    "kv_cache_dtype": "auto",
+    "language_model_only": true,
+    "pp512_tg256_c1_output_tps": 43.05,
+    "pp512_tg256_c8_output_tps": 247.73
+  },
+  "candidates": [
+    {
+      "id": "redhat-fp8",
+      "model": "RedHatAI/Qwen3.8-27B-INT4",
+      "revision": "2fb0debc365fb6c1683d7d3ad7722470919627a8",
+      "quantization": "compressed-tensors",
+      "context_size": 131072,
+      "kv_cache_dtype": "fp8",
+      "gpu_kv_cache_tokens_per_rank": 258694,
+      "short_vision": [
+        {"resolution": [256, 256], "completed": 1, "failed": 0, "input_tokens": 631, "output_tokens": 32},
+        {"resolution": [720, 1280], "completed": 1, "failed": 0, "input_tokens": 1447, "output_tokens": 32},
+        {"resolution": [1024, 1024], "completed": 1, "failed": 0, "input_tokens": 1591, "output_tokens": 32}
+      ],
+      "second_image_rejected": true,
+      "long_vision": {
+        "requested_input_tokens": 130816,
+        "requested_output_tokens": 256,
+        "completed": 0,
+        "error": "UR_RESULT_ERROR_DEVICE_LOST"
+      },
+      "passed": false,
+      "failure_gate": "engine_device_lost"
+    },
+    {
+      "id": "gptq-fp8",
+      "model": "SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16",
+      "revision": "e28c5f952bdd5d814297a07d85a064a87af26a3f",
+      "quantization": "gptq",
+      "context_size": 131072,
+      "kv_cache_dtype": "fp8",
+      "model_shard_sha256": [
+        "30c8e2b1c82cdcc840848b5c98bafe2f74269b1e6472a053ce7d7b2d002f39a7",
+        "ff66eaf6ecc6e4b214f281ac532dcfcb07c60d5a8c78cf145bc93c38c00c024e",
+        "15284cb88d52ea1648b4fcc68901286d7c4795388e05ae1e143c8026fcb0be44",
+        "878ae6ebc9553de5340df0d6097aa319f58650382c89e474b39d0c0a98e76932",
+        "2a6ebd04c77c2d5ce5952ca81a4197f1c34f712a00c293a25242ec27ac413729"
+      ],
+      "gpu_kv_cache_tokens_per_rank": 256970,
+      "short_vision": {"resolution": [256, 256], "completed": 1, "failed": 0, "input_tokens": 631, "output_tokens": 32},
+      "long_vision": {
+        "input_tokens": 130816,
+        "output_tokens": 256,
+        "completed": 1,
+        "failed": 0,
+        "mean_ttft_ms": 177148.66655800142
+      },
+      "marker_probe": {
+        "position": "end",
+        "input_tokens": 130816,
+        "expected": "B70_END_9F4C2A",
+        "actual": "B70_END_9F4C2A",
+        "completion_tokens": 12,
+        "logprobs_count": 12,
+        "logprobs_finite": true
+      },
+      "pp512_tg256": {
+        "c1_output_tps": [40.75611399364598, 40.5896396202736, 40.854792572382536],
+        "c1_median_output_tps": 40.75611399364598,
+        "c1_change_percent": -5.328422778987263,
+        "c1_cv_percent": 0.2686272937081574,
+        "c8_output_tps": [227.03492952904944, 244.30715240258309, 233.36304260376946],
+        "c8_median_output_tps": 233.36304260376946,
+        "c8_change_percent": -5.799441890861234,
+        "c8_cv_percent": 3.0373551819435676
+      },
+      "passed": false,
+      "failure_gate": "text_output_tps_regression_over_5_percent"
+    }
+  ],
+  "restored": {
+    "model": "RedHatAI/Qwen3.8-27B-INT4",
+    "context_size": 118784,
+    "kv_cache_dtype": "auto",
+    "language_model_only": true,
+    "health": true,
+    "container_restart_count": 0,
+    "content_canary_timer_active": true,
+    "c8_soak": {
+      "input_tokens": 512,
+      "output_tokens": 256,
+      "requests": 40,
+      "completed": 40,
+      "failed": 0,
+      "output_tps": 237.75474977128667,
+      "median_ttft_ms": 499.2328724983963,
+      "median_tpot_ms": 26.108507584314225
+    }
+  },
+  "selected_candidate": null
+}
