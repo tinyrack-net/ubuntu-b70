@@ -382,7 +382,7 @@
 
         - name: Precondition every workload and concurrency shape
           ansible.builtin.include_tasks: tasks/precondition_vllm_benchmark_shape.yml
-          loop: "{{ benchmark_suite.cases | product(benchmark_suite.concurrency_levels) | list }}"
+          loop: "{{ benchmark_selected_cases | product(benchmark_selected_concurrency_levels) | list }}"
           loop_control:
             loop_var: benchmark_shape
             label: "{{ benchmark_shape.0.id }}-c{{ benchmark_shape.1 }}"
