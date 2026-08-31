@@ -63,6 +63,13 @@ token generation, TTFT, TPOT, ITL, E2E latency와 aggregate throughput을 측정
 make benchmark-api
 ```
 
+비교 실험은 canonical suite를 바꾸지 않고 candidate ID와 matrix filter를 extra-vars로
+전달한다. 선택한 candidate ID, case, 동시성 및 반복 수는 manifest에 기록된다.
+
+```bash
+make benchmark-api BENCHMARK_ARGS='-e benchmark_candidate_id=example -e benchmark_case_ids=[pp512-tg256] -e benchmark_concurrency_levels=[1] -e benchmark_round_count=5'
+```
+
 정식 실행은 깨끗한 Git commit에서만 허용된다. 측정 중 content canary를 멈추고 같은
 Compose 구성을 loopback 전용 포트로 재기동하여 외부 트래픽을 격리한다. 완료 또는 실패
 후에는 운영 Compose와 canary를 자동 복구한다. 강제 중단 등으로 복구되지 않았다면 다음

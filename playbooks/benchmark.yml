@@ -6,6 +6,10 @@
     benchmark_root: "{{ playbook_dir }}/../benchmarks"
     benchmark_suite_path: "{{ benchmark_root }}/suite.yml"
     benchmark_require_clean_git: true
+    benchmark_candidate_id: production
+    benchmark_case_ids: []
+    benchmark_concurrency_levels: []
+    benchmark_round_count: 0
   tasks:
     - name: Load and validate the canonical benchmark suite
       ansible.builtin.set_fact:
@@ -33,6 +37,41 @@
           - benchmark_suite.cases | map(attribute='id') | unique | length == benchmark_suite.cases | length
           - benchmark_suite.cases | map(attribute='input_len') | min > 0
           - benchmark_suite.cases | map(attribute='output_len') | min > 0
+
+    - name: Select the requested benchmark matrix
+      ansible.builtin.set_fact:
+        benchmark_selected_cases: >-
+          {{
+            benchmark_suite.cases
+            if benchmark_case_ids | length == 0
+            else benchmark_suite.cases
+                 | selectattr('id', 'in', benchmark_case_ids)
+                 | list
+          }}
+        benchmark_selected_concurrency_levels: >-
+          {{
+            benchmark_suite.concurrency_levels
+            if benchmark_concurrency_levels | length == 0
+            else benchmark_concurrency_levels | map('int') | list
+          }}
+        benchmark_selected_round_count: >-
+          {{
+            benchmark_suite.rounds
+            if benchmark_round_count | int == 0
+            else benchmark_round_count | int
+          }}
+
+    - name: Validate the requested benchmark matrix
+      ansible.builtin.assert:
+        that:
+          - benchmark_candidate_id | length > 0
+          - benchmark_candidate_id is match('^[a-z0-9][a-z0-9._-]*$')
+          - benchmark_selected_cases | length > 0
+          - benchmark_selected_cases | length == (benchmark_case_ids | unique | length) or benchmark_case_ids | length == 0
+          - benchmark_selected_concurrency_levels | length > 0
+          - benchmark_selected_concurrency_levels | difference(benchmark_suite.concurrency_levels) | length == 0
+          - benchmark_selected_round_count | int >= 1
+          - benchmark_selected_round_count | int <= 10
 
     - name: Read the repository commit
       ansible.builtin.command:
@@ -69,7 +108,7 @@
         benchmark_git_clean: "{{ benchmark_git_status.stdout | length == 0 }}"
         benchmark_suite_sha256: "{{ benchmark_suite_stat.stat.checksum }}"
         benchmark_run_id: >-
-          {{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}-{{ benchmark_git_commit_result.stdout[:12] }}
+          {{ lookup('pipe', 'date -u +%Y%m%dT%H%M%SZ') }}-{{ benchmark_git_commit_result.stdout[:12] }}-{{ benchmark_candidate_id }}
 
     - name: Build the complete benchmark matrix
       ansible.builtin.set_fact:
@@ -86,9 +125,9 @@
           }}
       loop: >-
         {{
-          benchmark_suite.cases
-          | product(benchmark_suite.concurrency_levels)
-          | product(range(1, benchmark_suite.rounds + 1))
+          benchmark_selected_cases
+          | product(benchmark_selected_concurrency_levels)
+          | product(range(1, (benchmark_selected_round_count | int) + 1))
           | list
         }}
       loop_control:
@@ -124,6 +163,10 @@
     benchmark_git_commit: "{{ hostvars.localhost.benchmark_git_commit }}"
     benchmark_git_clean: "{{ hostvars.localhost.benchmark_git_clean }}"
     benchmark_suite_sha256: "{{ hostvars.localhost.benchmark_suite_sha256 }}"
+    benchmark_candidate_id: "{{ hostvars.localhost.benchmark_candidate_id }}"
+    benchmark_selected_cases: "{{ hostvars.localhost.benchmark_selected_cases }}"
+    benchmark_selected_concurrency_levels: "{{ hostvars.localhost.benchmark_selected_concurrency_levels }}"
+    benchmark_selected_round_count: "{{ hostvars.localhost.benchmark_selected_round_count }}"
     benchmark_container_name: >-
       {{ llm_runtime_vllm_container_name | default(llm_role_defaults.llm_runtime_vllm_container_name) }}
     benchmark_port: "{{ llm_runtime_port | default(llm_role_defaults.llm_runtime_port) }}"
@@ -513,6 +556,10 @@
                   | map(attribute='stdout') | list
                 }}
           benchmark:
+            candidate_id: "{{ benchmark_candidate_id }}"
+            selected_case_ids: "{{ benchmark_selected_cases | map(attribute='id') | list }}"
+            selected_concurrency_levels: "{{ benchmark_selected_concurrency_levels }}"
+            selected_round_count: "{{ benchmark_selected_round_count | int }}"
             suite: "{{ benchmark_suite }}"
             command: vllm bench serve
             invocations: "{{ benchmark_invocations }}"

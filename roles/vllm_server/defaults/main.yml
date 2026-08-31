@@ -36,6 +36,7 @@ vllm_server_mm_processor_cache_gb: "1"
 vllm_server_context_size: 131072
 vllm_server_max_num_seqs: 4
 vllm_server_max_num_batched_tokens: 2048
+vllm_server_num_speculative_tokens: 3
 vllm_server_data_parallel_size: 1
 vllm_server_gpu_memory_utilization: "0.92"
 vllm_server_kv_cache_dtype: fp8
@@ -63,4 +64,6 @@ vllm_server_instances:
     max_num_seqs: 4
     extra_environment:
       VLLM_WORKER_MULTIPROC_METHOD: spawn
-    speculative_config: {method: qwen3_5_mtp, num_speculative_tokens: 3}
+    speculative_config:
+      method: qwen3_5_mtp
+      num_speculative_tokens: "{{ vllm_server_num_speculative_tokens | int }}"
