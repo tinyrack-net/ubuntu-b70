@@ -83,6 +83,7 @@
           - "'data_parallel_size: 2' in vllm_defaults"
           - "'port: 8081' not in vllm_defaults"
           - "'vllm_server_enable_prefix_caching: false' in vllm_defaults"
+          - "'vllm_server_language_model_only: true' in vllm_defaults"
 
     - name: Assert vLLM topology, pinning, and canary safeguards
       ansible.builtin.assert:
@@ -93,6 +94,12 @@
           - "'--data-parallel-backend mp' in vllm_compose"
           - "'--enforce-eager' in vllm_compose"
           - "'--mamba-ssm-cache-dtype' in vllm_compose"
+          - "'instance_language_model_only' in vllm_compose"
+          - "'--no-language-model-only' in vllm_compose"
+          - "'--limit-mm-per-prompt' in vllm_compose"
+          - "'--mm-processor-kwargs' in vllm_compose"
+          - "'--mm-processor-cache-type' in vllm_compose"
+          - "'--mm-processor-cache-gb' in vllm_compose"
           - "'Verify pinned local vLLM image IDs' in vllm_tasks"
           - "'check_mode: false' in vllm_tasks"
           - "'vllm_server_model_files:' in vllm_defaults"
@@ -161,7 +168,11 @@
           - benchmark_suite.preconditioning_requests_per_concurrency == 5
           - benchmark_suite.concurrency_levels == [1, 2, 4, 8]
           - benchmark_suite.output_tps_cv_limit_percent == 5.0
-          - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128']
+          - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128', 'mm256-pp512-tg128']
+          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random', 'random-mm']
+          - "benchmark_suite.cases[3].limit_mm_per_prompt == {'image': 1, 'video': 0}"
+          - "'--random-mm-base-items-per-request' in benchmark_round_tasks"
+          - "'--random-mm-limit-mm-per-prompt' in benchmark_round_tasks"
           - "benchmark_round_tasks.count('      - vllm') == 1"
           - "benchmark_round_tasks.count('      - bench') == 1"
           - "benchmark_round_tasks.count('      - serve') == 1"

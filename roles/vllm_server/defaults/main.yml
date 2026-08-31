@@ -18,6 +18,13 @@ vllm_server_tokenizer: Qwen/Qwen3.8-27B
 vllm_server_tokenizer_revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0
 vllm_server_quantization: compressed-tensors
 vllm_server_served_model_name: Qwen3.8-27B
+vllm_server_language_model_only: true
+vllm_server_limit_mm_per_prompt:
+  image: 0
+  video: 0
+vllm_server_mm_processor_kwargs: {}
+vllm_server_mm_processor_cache_type: shm
+vllm_server_mm_processor_cache_gb: "1"
 vllm_server_context_size: 118784
 vllm_server_max_num_seqs: 4
 vllm_server_max_num_batched_tokens: 2048

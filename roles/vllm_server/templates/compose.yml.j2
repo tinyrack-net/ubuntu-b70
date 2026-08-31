@@ -7,6 +7,11 @@ services:
 {% set instance_tokenizer = instance.tokenizer | default(vllm_server_tokenizer) %}
 {% set instance_tokenizer_revision = instance.tokenizer_revision | default(vllm_server_tokenizer_revision) %}
 {% set instance_quantization = instance.quantization | default(vllm_server_quantization) %}
+{% set instance_language_model_only = instance.language_model_only | default(vllm_server_language_model_only) %}
+{% set instance_limit_mm_per_prompt = instance.limit_mm_per_prompt | default(vllm_server_limit_mm_per_prompt) %}
+{% set instance_mm_processor_kwargs = instance.mm_processor_kwargs | default(vllm_server_mm_processor_kwargs) %}
+{% set instance_mm_processor_cache_type = instance.mm_processor_cache_type | default(vllm_server_mm_processor_cache_type) %}
+{% set instance_mm_processor_cache_gb = instance.mm_processor_cache_gb | default(vllm_server_mm_processor_cache_gb) %}
 {% set instance_context_size = instance.context_size | default(vllm_server_context_size) %}
 {% set instance_max_num_seqs = instance.max_num_seqs | default(vllm_server_max_num_seqs) %}
 {% set instance_max_num_batched_tokens = instance.max_num_batched_tokens | default(vllm_server_max_num_batched_tokens) %}
@@ -56,9 +61,20 @@ services:
         --tokenizer "{{ instance_tokenizer }}"
         --tokenizer-revision "{{ instance_tokenizer_revision }}"
         --served-model-name "{{ vllm_server_served_model_name }}"
+{% if instance_language_model_only | bool %}
         --language-model-only
+{% else %}
+        --no-language-model-only
+        --limit-mm-per-prompt '{{ instance_limit_mm_per_prompt | to_json }}'
+        --mm-processor-kwargs '{{ instance_mm_processor_kwargs | to_json }}'
+        --mm-processor-cache-type "{{ instance_mm_processor_cache_type }}"
+        --mm-processor-cache-gb "{{ instance_mm_processor_cache_gb }}"
+{% endif %}
         --host 0.0.0.0 --port 8080
-        --dtype float16 --quantization "{{ instance_quantization }}"
+        --dtype float16
+{% if instance_quantization | default('') | length > 0 %}
+        --quantization "{{ instance_quantization }}"
+{% endif %}
         --max-model-len "{{ instance_context_size }}"
         --max-num-seqs "{{ instance_max_num_seqs }}"
         --max-num-batched-tokens "{{ instance_max_num_batched_tokens }}"
