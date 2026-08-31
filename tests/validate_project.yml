@@ -21,6 +21,8 @@
         qwen_compose: "{{ lookup('file', root ~ '/profiles/qwen-3.8-27b/compose.yml') }}"
         gemma_profile: "{{ lookup('file', root ~ '/profiles/gemma-31b/manifest.yml') | from_yaml }}"
         gemma_compose: "{{ lookup('file', root ~ '/profiles/gemma-31b/compose.yml') }}"
+        gemma12_profile: "{{ lookup('file', root ~ '/profiles/gemma-12b/manifest.yml') | from_yaml }}"
+        gemma12_compose: "{{ lookup('file', root ~ '/profiles/gemma-12b/compose.yml') }}"
         makefile: "{{ lookup('file', root ~ '/Makefile') }}"
         intel_defaults: "{{ lookup('file', root ~ '/roles/intel_gpu/defaults/main.yml') }}"
         intel_tasks: "{{ lookup('file', root ~ '/roles/intel_gpu/tasks/main.yml') }}"
@@ -76,6 +78,18 @@
         checksum_algorithm: sha256
       register: gemma_runtime_patch
 
+    - name: Calculate the Gemma 12B patch checksums
+      ansible.builtin.stat:
+        path: "{{ root }}/{{ item.value }}"
+        checksum_algorithm: sha256
+      loop: "{{ gemma12_patch_files | dict2items }}"
+      vars:
+        gemma12_patch_files:
+          unified_mtp: "{{ gemma12_profile.image.unified_mtp_patch_file }}"
+          flash_attn_descale: "{{ gemma12_profile.image.flash_attn_descale_patch_file }}"
+          unified_mm: "{{ gemma12_profile.image.unified_mm_patch_file }}"
+      register: gemma12_runtime_patches
+
     - name: Assert static model profile configuration
       ansible.builtin.assert:
         that:
@@ -101,6 +115,26 @@
           - "'--kv-cache-dtype fp8' in gemma_compose"
           - "'--tool-call-parser gemma4' in gemma_compose"
           - "'num_speculative_tokens\":4' in gemma_compose"
+          - gemma12_profile.slug == 'gemma-12b'
+          - gemma12_profile.served_model_name == 'gemma-4-12B-it'
+          - gemma12_profile.image.expected_id == 'sha256:23e1bb365d25800039d5ae6e3acd707e7204ba2e0b87d18cd644306accfa6163'
+          - gemma12_profile.model.revision == '707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7'
+          - gemma12_profile.assistant.revision == '46d4c6f13f0ac0ad827b915669b8df9b81c64c51'
+          - gemma12_runtime_patches.results[0].stat.checksum == gemma12_profile.image.unified_mtp_patch_sha256
+          - gemma12_runtime_patches.results[1].stat.checksum == gemma12_profile.image.flash_attn_descale_patch_sha256
+          - gemma12_runtime_patches.results[2].stat.checksum == gemma12_profile.image.unified_mm_patch_sha256
+          - "'--max-model-len 131072' in gemma12_compose"
+          - "'ONEAPI_DEVICE_SELECTOR: level_zero:0,1' in gemma12_compose"
+          - "'--max-num-seqs 4' in gemma12_compose"
+          - "'--data-parallel-size 2' in gemma12_compose"
+          - "'--data-parallel-backend mp' in gemma12_compose"
+          - "'--kv-cache-dtype auto' in gemma12_compose"
+          - "'--quantization sym_int4' in gemma12_compose"
+          - "'VLLM_INT4_GROUP_SIZE: \"32\"' in gemma12_compose"
+          - "'num_speculative_tokens\":6' in gemma12_compose"
+          - "gemma12_profile.assistant.revision in gemma12_compose"
+          - "'\"image\":4,\"audio\":1,\"video\":1' in gemma12_compose"
+          - "'--tool-call-parser gemma4' in gemma12_compose"
           - "qwen_xpu_dockerfile is search('FROM vllm/vllm-openai-xpu@sha256:f01e24f6')"
           - "qwen_xpu_dockerfile is search('ADD --checksum=sha256:4d7a02c4')"
           - "qwen_xpu_dockerfile is search('ADD --checksum=sha256:ffae4192')"
@@ -108,12 +142,13 @@
           - "gemma_xpu_dockerfile is search('FROM intel/llm-scaler-vllm:0.21.0-b3.1@sha256:032916bd')"
           - "'llm-base-proposer-gemma4.patch' in gemma_xpu_dockerfile"
 
-    - name: Validate both static Compose projects
+    - name: Validate all static Compose projects
       ansible.builtin.command:
         argv: [docker, compose, --project-name, vllm-server, --file, "{{ item }}", config, --quiet]
       loop:
         - "{{ root }}/profiles/qwen-3.8-27b/compose.yml"
         - "{{ root }}/profiles/gemma-31b/compose.yml"
+        - "{{ root }}/profiles/gemma-12b/compose.yml"
       changed_when: false
 
     - name: Assert profile deployment and canary safeguards

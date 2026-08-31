@@ -1,0 +1,30 @@
+---
+slug: gemma-12b
+served_model_name: gemma-4-12B-it
+image:
+  ref: ubuntu-b70/gemma4-xpu:b3.1-unified-mtp
+  expected_id: sha256:23e1bb365d25800039d5ae6e3acd707e7204ba2e0b87d18cd644306accfa6163
+  pull: false
+  patch_file: containers/gemma4-xpu/llm-base-proposer-gemma4.patch
+  patch_sha256: a6f2ae363ebe0473192d21d40131408abe1b08b9f5f488e5c2c647ed553409b2
+  unified_mtp_patch_file: containers/gemma4-xpu/gemma4-unified-mtp.patch
+  unified_mtp_patch_sha256: dfaad0e7c4cc8dd9f71797bbe53ede582f8240ad9bdb8eb77916cfa5d2307254
+  flash_attn_descale_patch_file: containers/gemma4-xpu/xpu-flash-attn-descale.patch
+  flash_attn_descale_patch_sha256: dd484238dac3db8bd5fa8998ef208c94b1f2588aa7220f47d4ec4072787c6355
+  unified_mm_patch_file: containers/gemma4-xpu/gemma4-unified-mm.patch
+  unified_mm_patch_sha256: cf6bbfc7d8487948737c0341f86cd743722ffc4aa6beb7ec5bc4fba7cc8e6f25
+model:
+  repo: google/gemma-4-12B-it
+  revision: 707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7
+  files:
+    - name: model.safetensors
+      sha256: 5a84cb313260ac447237b890387116dfa8682e49a6b44bc585ae8353abbff18d
+assistant:
+  repo: google/gemma-4-12B-it-assistant
+  revision: 46d4c6f13f0ac0ad827b915669b8df9b81c64c51
+  files:
+    - name: model.safetensors
+      sha256: 3279c173daddd7186e79d652ad94022415736d3a1370625696c898429b06d6df
+tokenizer:
+  repo: google/gemma-4-12B-it
+  revision: 707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7

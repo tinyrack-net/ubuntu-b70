@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "run_id": "20260831T163201Z-de22893f0de2-gemma12-dp2-c8",
+  "cases": [
+    {
+      "id": "pp512-tg1024-c1",
+      "concurrency": 1,
+      "requests": 5,
+      "completed": 5,
+      "failed": 0,
+      "output_tokens": 5120,
+      "duration_s": 36.59056770000461,
+      "output_tps": 139.92677134657723,
+      "total_tps": 211.72123000428397,
+      "median_ttft_ms": 150.69175499957055,
+      "median_tpot_ms": 7.067411547409335,
+      "mtp_acceptance_rate_pct": 66.76413255360623,
+      "mtp_acceptance_length": 5.005847953216374
+    },
+    {
+      "id": "pp512-tg256-c1",
+      "concurrency": 1,
+      "requests": 5,
+      "completed": 5,
+      "failed": 0,
+      "output_tokens": 1280,
+      "duration_s": 13.710052789996553,
+      "output_tps": 93.36214962891633,
+      "total_tps": 284.97337390638756,
+      "median_ttft_ms": 153.33670799736865,
+      "median_tpot_ms": 9.829607611783443,
+      "mtp_acceptance_rate_pct": 38.052721088435376,
+      "mtp_acceptance_length": 3.2831632653061225
+    },
+    {
+      "id": "pp512-tg256-c4",
+      "concurrency": 4,
+      "requests": 20,
+      "completed": 20,
+      "failed": 0,
+      "output_tokens": 5120,
+      "duration_s": 23.35160217899829,
+      "output_tps": 219.2569041196141,
+      "total_tps": 669.2046173197675,
+      "median_ttft_ms": 233.42670399870258,
+      "median_tpot_ms": 13.311798215684522,
+      "mtp_acceptance_rate_pct": 37.95411089866157,
+      "mtp_acceptance_length": 3.2772466539196943
+    },
+    {
+      "id": "pp512-tg256-c8",
+      "concurrency": 8,
+      "requests": 40,
+      "completed": 40,
+      "failed": 0,
+      "output_tokens": 10240,
+      "duration_s": 22.974353568999504,
+      "output_tps": 445.7143905810419,
+      "total_tps": 1360.5170611710573,
+      "median_ttft_ms": 253.18556600177544,
+      "median_tpot_ms": 15.354664594119907,
+      "mtp_acceptance_rate_pct": 37.70786992903294,
+      "mtp_acceptance_length": 3.2624721957419767
+    }
+  ],
+  "comparisons": {
+    "tp1_previous_pp512_tg1024_c1_output_tps": 139.74419273909766,
+    "dp2_c1_vs_tp1_ratio": 1.001306506830946,
+    "same_workload_c4_vs_c1_output_tps_ratio": 2.348456039102439,
+    "same_workload_c8_vs_c1_output_tps_ratio": 4.774037362599397,
+    "same_workload_c8_vs_c4_output_tps_ratio": 2.0328408465435848
+  }
+}

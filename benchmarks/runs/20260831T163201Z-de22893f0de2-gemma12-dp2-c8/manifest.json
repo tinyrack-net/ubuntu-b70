@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "run_id": "20260831T163201Z-de22893f0de2-gemma12-dp2-c8",
+  "git": {
+    "commit": "de22893f0de2456a435693838b8a0cf2aa913c3e",
+    "dirty_during_experiment": true
+  },
+  "runtime": {
+    "host": "ubuntu-gpu",
+    "image_id": "sha256:23e1bb365d25800039d5ae6e3acd707e7204ba2e0b87d18cd644306accfa6163",
+    "vllm": "0.21.1.dev0+gad7125a43.d20260812",
+    "device_selector": "level_zero:0,1",
+    "container_restart_count": 0
+  },
+  "model": {
+    "repo": "google/gemma-4-12B-it",
+    "revision": "707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7",
+    "assistant_repo": "google/gemma-4-12B-it-assistant",
+    "assistant_revision": "46d4c6f13f0ac0ad827b915669b8df9b81c64c51",
+    "served_name": "gemma-4-12B-it"
+  },
+  "configuration": {
+    "data_parallel_size": 2,
+    "data_parallel_backend": "mp",
+    "tensor_parallel_size": 1,
+    "max_num_seqs_per_rank": 4,
+    "max_num_seqs_total": 8,
+    "max_model_len": 131072,
+    "max_num_batched_tokens": 8192,
+    "target_quantization": "online symmetric INT4 group 32",
+    "kv_cache_dtype": "auto",
+    "num_speculative_tokens": 6,
+    "xpu_graph": true,
+    "prefix_caching": false
+  },
+  "benchmark": {
+    "backend": "openai-chat",
+    "dataset": "random",
+    "input_tokens": 512,
+    "request_rate": "inf",
+    "seed": 0,
+    "temperature": 0,
+    "ignore_eos": true,
+    "warmups": 1,
+    "requests_per_concurrency": 5
+  },
+  "raw_sha256": {
+    "gemma12-dp2-pp512-tg1024-c1.json": "7799177af5d40f5b4ba32014039f78db04b29bbb7278ace51833058f024f8818",
+    "gemma12-dp2-pp512-tg256-c1.json": "143b191d493d0b21b31d3c051483a892e15249978cc78f50c0acecd506fccec9",
+    "gemma12-dp2-pp512-tg256-c4.json": "d1649a508a5b3e40123446218ad9c319a8e893346c4245910d5bc1ea515ccb6c",
+    "gemma12-dp2-pp512-tg256-c8.json": "91698acfac1f6d7e2e82c6a5d80376069c8433952644ca277453aba82606104d"
+  },
+  "validation": {
+    "health": true,
+    "models_api": true,
+    "api_requests": 6,
+    "api_failures": 0,
+    "tool_call": true,
+    "canary_enabled": true,
+    "canary_active": true,
+    "oom": false,
+    "preemption": false,
+    "engine_restart": false
+  },
+  "status": "deployed"
+}

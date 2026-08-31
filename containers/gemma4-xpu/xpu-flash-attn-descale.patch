@@ -1,0 +1,21 @@
+--- a/vllm_xpu_kernels/flash_attn_interface.py
++++ b/vllm_xpu_kernels/flash_attn_interface.py
+@@ -87,11 +87,19 @@
+     if softmax_scale is None:
+         softmax_scale = q.shape[-1]**(-0.5)
+     if k_descale is not None:
++        if k_descale.numel() == 1 and sum(k_descale.stride()) != 0:
++            original_shape = k_descale.shape
++            scalar = k_descale.reshape(-1)[0].to(dtype=torch.float32)
++            k_descale = scalar.reshape(()).expand(original_shape)
+         assert sum(k_descale.stride()) == 0 and \
+             k_descale.dtype == torch.float32, \
+             "k_descale must be view of single float32 scalar tensor"
+     if v_descale is not None:
++        if v_descale.numel() == 1 and sum(v_descale.stride()) != 0:
++            original_shape = v_descale.shape
++            scalar = v_descale.reshape(-1)[0].to(dtype=torch.float32)
++            v_descale = scalar.reshape(()).expand(original_shape)
+         assert sum(v_descale.stride()) == 0 and \
+             v_descale.dtype == torch.float32, \
+             "v_descale must be view of single float32 scalar tensor"

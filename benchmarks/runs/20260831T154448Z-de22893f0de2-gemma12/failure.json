@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "events": [
+    {"candidate": "qat-w4a16-mtp6", "stage": "audio_validation", "result": "rejected", "reason": "audio_tower_not_initialized"},
+    {"candidate": "online-sym-int4-group64-mtp6", "stage": "generation", "result": "rejected", "reason": "repeated_pad_output"},
+    {"candidate": "online-sym-int4-group128-mtp4-mtp6", "stage": "generation", "result": "rejected", "reason": "repeated_pad_output"},
+    {"candidate": "bf16-target-128k", "stage": "startup", "result": "rejected", "reason": "insufficient_kv_capacity", "available_kv_gib": 3.26, "required_kv_gib": 4.83, "estimated_max_model_len": 28160},
+    {"candidate": "triton-attn-full-graph", "stage": "warmup", "result": "stopped", "reason": "warmup_decode_below_screening_range", "elapsed_seconds": 72.53, "output_tokens": 1024},
+    {"candidate": "tp2-graph-on", "stage": "startup", "result": "rejected", "reason": "xccl_allgather_sycl_segfault", "restart_count": 1},
+    {"candidate": "tp2-graph-off", "stage": "startup", "result": "rejected", "reason": "worker_shared_memory_initialization_failure", "restart_count": 1},
+    {"candidate": "autoround-w4a16", "stage": "multimodal_eligibility", "result": "rejected", "reason": "checkpoint_missing_required_modality_towers"}
+  ]
+}

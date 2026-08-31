@@ -1,0 +1,19 @@
+--- a/vllm/transformers_utils/configs/gemma4_unified.py
++++ b/vllm/transformers_utils/configs/gemma4_unified.py
+@@ -245,6 +245,8 @@
+         The begin-of-audio token index to wrap the audio prompt.
+     eoa_token_index (`int`, *optional*, defaults to 258883):
+         The end-of-audio token index to wrap the audio prompt.
++    eoa_token_id (`int`, *optional*, defaults to 258883):
++        Alias used by the multimodal processor for the end-of-audio token.
+ 
+     Example:
+ 
+@@ -322,6 +322,7 @@
+     video_token_id: int | None = 258_884
+     boa_token_id: int | None = 256_000
+     eoa_token_index: int | None = 258_883
++    eoa_token_id: int | None = 258_883
+     audio_token_id: int | None = 258_881
+     initializer_range: float | None = 0.02
+     tie_word_embeddings: bool = True

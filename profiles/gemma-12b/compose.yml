@@ -1,0 +1,57 @@
+---
+services:
+  vllm-server:
+    image: ubuntu-b70/gemma4-xpu:b3.1-unified-mtp
+    pull_policy: never
+    container_name: vllm-server
+    restart: unless-stopped
+    ports:
+      - "10.132.247.37:8080:8080"
+    devices:
+      - "/dev/dri:/dev/dri"
+    ipc: host
+    privileged: true
+    environment:
+      ONEAPI_DEVICE_SELECTOR: level_zero:0,1
+      VLLM_XPU_ENABLE_XPU_GRAPH: "1"
+      VLLM_WORKER_MULTIPROC_METHOD: spawn
+      VLLM_OFFLOAD_WEIGHTS_BEFORE_QUANT: "1"
+      VLLM_INT4_GROUP_SIZE: "32"
+    volumes:
+      - "/etc/vllm-server/api-key:/run/secrets/llm_api_key:ro"
+      - "/var/lib/vllm-server/huggingface:/root/.cache/huggingface"
+      - "/var/lib/vllm-server/vllm-cache:/root/.cache/vllm"
+      - "/dev/dri/by-path:/dev/dri/by-path:ro"
+    entrypoint: [/bin/bash, -lc]
+    command:
+      - >-
+        export VLLM_API_KEY="$$(cat /run/secrets/llm_api_key)";
+        exec vllm serve "google/gemma-4-12B-it"
+        --revision "707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7"
+        --tokenizer "google/gemma-4-12B-it"
+        --tokenizer-revision "707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7"
+        --served-model-name "gemma-4-12B-it"
+        --host 0.0.0.0 --port 8080
+        --dtype float16
+        --quantization sym_int4
+        --trust-remote-code
+        --block-size 64
+        --max-model-len 131072
+        --max-num-seqs 4
+        --max-num-batched-tokens 8192
+        --data-parallel-size 2
+        --data-parallel-backend mp
+        --gpu-memory-utilization 0.92
+        --no-enable-prefix-caching
+        --kv-cache-dtype auto
+        --speculative-config '{"method":"mtp",
+        "model":"google/gemma-4-12B-it-assistant",
+        "revision":"46d4c6f13f0ac0ad827b915669b8df9b81c64c51",
+        "num_speculative_tokens":6}'
+        --limit-mm-per-prompt '{"image":4,"audio":1,"video":1}'
+        --mm-processor-cache-type shm
+        --mm-processor-cache-gb 1
+        --enable-auto-tool-choice
+        --tool-call-parser gemma4
+        --reasoning-parser gemma4
+        --generation-config vllm

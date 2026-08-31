@@ -1,0 +1,100 @@
+--- a/vllm/config/speculative.py
++++ b/vllm/config/speculative.py
+@@ -488,7 +488,7 @@
+                 {"n_predict": n_predict, "architectures": ["HYV3MTPModel"]}
+             )
+ 
+-        if hf_config.model_type == "gemma4_assistant":
++        if hf_config.model_type in ("gemma4_assistant", "gemma4_unified_assistant"):
+             hf_config.model_type = "gemma4_mtp"
+             text_config = getattr(hf_config, "text_config", hf_config)
+             # The assistant runs all decoder layers in a single forward
+--- a/vllm/model_executor/models/gemma4_mtp.py
++++ b/vllm/model_executor/models/gemma4_mtp.py
+@@ -279,11 +279,19 @@
+             else config.head_dim
+         )
+ 
++        use_k_eq_v = is_full_attention and getattr(config, "attention_k_eq_v", False)
++        if use_k_eq_v:
++            num_kv_heads = getattr(
++                config, "num_global_key_value_heads", config.num_key_value_heads
++            )
++        else:
++            num_kv_heads = config.num_key_value_heads
++
+         self.self_attn = Gemma4MTPAttention(
+             config=config,
+             hidden_size=self.hidden_size,
+             num_heads=config.num_attention_heads,
+-            num_kv_heads=config.num_key_value_heads,
++            num_kv_heads=num_kv_heads,
+             head_dim=head_dim,
+             max_position_embeddings=config.max_position_embeddings,
+             cache_config=cache_config,
+--- a/vllm/transformers_utils/config.py
++++ b/vllm/transformers_utils/config.py
+@@ -96,6 +96,7 @@
+     deepseek_vl_v2="DeepseekVLV2Config",
+     diffusion_gemma="DiffusionGemmaConfig",
+     gemma4_unified="Gemma4UnifiedConfig",
++    gemma4_unified_assistant="Gemma4UnifiedAssistantConfig",
+     deepseek_v32="DeepseekV3Config",
+     deepseek_v4="DeepseekV4Config",
+     flex_olmo="FlexOlmoConfig",
+--- a/vllm/v1/spec_decode/llm_base_proposer.py
++++ b/vllm/v1/spec_decode/llm_base_proposer.py
+@@ -1225,6 +1225,7 @@
+                 "Qwen3VLForConditionalGeneration",
+                 "Qwen3VLMoeForConditionalGeneration",
+                 "Gemma4ForConditionalGeneration",
++                "Gemma4UnifiedForConditionalGeneration",
+             ]:
+                 self.model.config.image_token_index = target_model.config.image_token_id
+             elif self.get_model_name(target_model) == "PixtralForConditionalGeneration":
+--- a/vllm/transformers_utils/configs/__init__.py
++++ b/vllm/transformers_utils/configs/__init__.py
+@@ -28,6 +28,7 @@
+     "DiffusionGemmaConfig": "vllm.transformers_utils.configs.diffusion_gemma",
+     "DiffusionGemmaTextConfig": "vllm.transformers_utils.configs.diffusion_gemma",
+     "Gemma4UnifiedConfig": "vllm.transformers_utils.configs.gemma4_unified",
++    "Gemma4UnifiedAssistantConfig": "vllm.transformers_utils.configs.gemma4_unified",
+     "DeepseekV4Config": "vllm.transformers_utils.configs.deepseek_v4",
+     "DotsOCRConfig": "vllm.transformers_utils.configs.dotsocr",
+     "EAGLEConfig": "vllm.transformers_utils.configs.eagle",
+--- a/vllm/transformers_utils/configs/gemma4_unified.py
++++ b/vllm/transformers_utils/configs/gemma4_unified.py
+@@ -341,4 +341,32 @@
+         super().__post_init__(**kwargs)
+ 
+ 
+-__all__ = ["Gemma4UnifiedAudioConfig", "Gemma4UnifiedConfig", "Gemma4UnifiedTextConfig", "Gemma4UnifiedVisionConfig"]
++@strict
++class Gemma4UnifiedAssistantConfig(PreTrainedConfig):
++    """Configuration for the encoder-free Gemma 4 MTP assistant."""
++
++    model_type = "gemma4_unified_assistant"
++    sub_configs = {"text_config": Gemma4UnifiedTextConfig}
++
++    text_config: Gemma4UnifiedTextConfig | dict[str, Any] | None = None
++    backbone_hidden_size: int = 3840
++    tie_word_embeddings: bool = True
++    use_ordered_embeddings: bool = False
++    num_centroids: int = 2048
++    centroid_intermediate_top_k: int = 32
++    boi_token_id: int | None = 255_999
++    eoi_token_id: int | None = 258_882
++    image_token_id: int | None = 258_880
++    boa_token_id: int | None = 256_000
++    eoa_token_index: int | None = 258_883
++    audio_token_id: int | None = 258_881
++
++    def __post_init__(self, **kwargs):
++        if self.text_config is None:
++            self.text_config = Gemma4UnifiedTextConfig()
++        elif isinstance(self.text_config, dict):
++            self.text_config = Gemma4UnifiedTextConfig(**self.text_config)
++        super().__post_init__(**kwargs)
++
++
++__all__ = ["Gemma4UnifiedAssistantConfig", "Gemma4UnifiedAudioConfig", "Gemma4UnifiedConfig", "Gemma4UnifiedTextConfig", "Gemma4UnifiedVisionConfig"]

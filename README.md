@@ -2,8 +2,8 @@
 
 `ubuntu-gpu`(Ubuntu 26.04, Intel Arc Pro B70)을 재현 가능한 OpenAI 호환 LLM 서버로 구성한다.
 모델별 정적 Compose 프로필이 image digest/ID, 모델 revision과 체크섬, vLLM 실행 인자를
-소유한다. 현재 제공하는 프로필은 `qwen-3.8-27b`와 `gemma-31b`이며 두 프로필 모두 GPU0의
-TP1 OpenAI 호환 API를 배치한다.
+소유한다. 현재 제공하는 프로필은 `qwen-3.8-27b`, `gemma-12b`, `gemma-31b`다.
+Gemma 12B는 두 GPU의 DP2, 나머지는 GPU0의 TP1 OpenAI 호환 API로 배치한다.
 
 ## 최초 설정
 
@@ -39,8 +39,11 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 - `gemma-31b`: Intel llm-scaler b3.1 기반에 upstream Gemma4 MTP embedding 수정만
   고정 적용, Google QAT W4A16, context 32768, TP1, max sequences 1,
   assistant MTP4, XPU Graph, FP8 KV, text-only
-- `vllm-server`/8080 API는 GPU0을 사용하며 5분 주기의 content canary가 적용된다.
-  GPU 두 장을 TP2로 묶는 구성은 이 호스트에서 collective 비용 때문에 TP1보다 느려 사용하지 않는다.
+- `gemma-12b`: Intel llm-scaler b3.1 기반에 Gemma 4 Unified MTP와 XPU attention
+  descale 수정을 고정 적용, Google 원본을 online symmetric INT4 group 32로 양자화, context 131072, DP2,
+  rank당 max sequences 4(전체 C8), assistant MTP6, XPU Graph, auto KV, image 4/audio 1/video 1
+- `vllm-server`/8080 API에는 5분 주기의 content canary가 적용된다. Gemma 12B의
+  GPU 두 장은 DP2로 독립 실행하며, TP2는 collective 비용 때문에 사용하지 않는다.
 - vLLM Compose service와 컨테이너 이름은 `vllm-server`, llama.cpp는
   `llama-server`를 사용한다.
 - `vllm_server`와 `llama_server` role은 엔진별 task와 Compose 구성을 독립적으로

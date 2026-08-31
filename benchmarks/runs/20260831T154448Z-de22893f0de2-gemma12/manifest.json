@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "run_id": "20260831T154448Z-de22893f0de2-gemma12",
+  "git": {
+    "commit": "de22893f0de2456a435693838b8a0cf2aa913c3e",
+    "dirty_during_experiment": true
+  },
+  "host": {
+    "name": "ubuntu-gpu",
+    "os": "Ubuntu 26.04.1 LTS",
+    "kernel": "7.0.0-30-generic",
+    "cpu_count": 8,
+    "memory_gib": 60,
+    "gpu_count": 2,
+    "gpu": "Intel Battlemage G31 [8086:e223]",
+    "driver": "xe"
+  },
+  "runtime": {
+    "docker": "29.7.2",
+    "image_ref": "ubuntu-b70/gemma4-xpu:b3.1-unified-mtp",
+    "image_id": "sha256:23e1bb365d25800039d5ae6e3acd707e7204ba2e0b87d18cd644306accfa6163",
+    "vllm": "0.21.1.dev0+gad7125a43.d20260812",
+    "torch": "2.11.0+xpu"
+  },
+  "model": {
+    "repo": "google/gemma-4-12B-it",
+    "revision": "707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7",
+    "model_sha256": "5a84cb313260ac447237b890387116dfa8682e49a6b44bc585ae8353abbff18d",
+    "assistant_repo": "google/gemma-4-12B-it-assistant",
+    "assistant_revision": "46d4c6f13f0ac0ad827b915669b8df9b81c64c51",
+    "assistant_sha256": "3279c173daddd7186e79d652ad94022415736d3a1370625696c898429b06d6df"
+  },
+  "selected_configuration": {
+    "tensor_parallel_size": 1,
+    "target_quantization": "online symmetric INT4 group 32",
+    "draft_quantization": "BF16",
+    "num_speculative_tokens": 6,
+    "xpu_graph": true,
+    "attention_backend": "FLASH_ATTN",
+    "graph_mode": "PIECEWISE",
+    "max_model_len": 131072,
+    "kv_cache_dtype": "auto",
+    "max_num_batched_tokens": 8192,
+    "max_num_seqs": 1,
+    "prefix_caching": false,
+    "async_scheduling": true,
+    "modalities": {"image": 4, "audio": 1, "video": 1}
+  },
+  "workload": {
+    "screening": {"input_tokens": 512, "output_tokens": 1024, "requests": 5, "concurrency": 1, "temperature": 0, "seed": 0, "ignore_eos": true},
+    "depths": [128, 512, 2048, 65536],
+    "max_context_probe": {"input_tokens": 130816, "max_output_tokens": 256}
+  },
+  "patches": {
+    "llm_base_proposer_gemma4_sha256": "a6f2ae363ebe0473192d21d40131408abe1b08b9f5f488e5c2c647ed553409b2",
+    "unified_mtp_sha256": "dfaad0e7c4cc8dd9f71797bbe53ede582f8240ad9bdb8eb77916cfa5d2307254",
+    "flash_attn_descale_sha256": "dd484238dac3db8bd5fa8998ef208c94b1f2588aa7220f47d4ec4072787c6355",
+    "unified_mm_sha256": "cf6bbfc7d8487948737c0341f86cd743722ffc4aa6beb7ec5bc4fba7cc8e6f25"
+  },
+  "deployment": {
+    "profile": "gemma-12b",
+    "port": 8080,
+    "health": true,
+    "models_api": true,
+    "api_regression_requests": 6,
+    "api_regression_failures": 0,
+    "image": true,
+    "audio": true,
+    "video": true,
+    "tool_call": true,
+    "canary_active": true,
+    "canary_enabled": true,
+    "restart_count": 0
+  },
+  "status": "deployed",
+  "secrets_recorded": false
+}
