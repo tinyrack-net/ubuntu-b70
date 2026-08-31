@@ -74,16 +74,18 @@
           - "'vllm_server_tool_call_parser' in vllm_compose"
           - "'vllm_server_reasoning_parser' in vllm_compose"
           - "'vllm_server_max_num_seqs: 4' in vllm_defaults"
-          - "'vllm_server_context_size: 118784' in vllm_defaults"
+          - "'vllm_server_context_size: 131072' in vllm_defaults"
           - "'vllm_server_enable_xpu_graph: false' in vllm_defaults"
           - "'intel/llm-scaler-vllm:0.21.0-b3.1@sha256:' in vllm_defaults"
-          - "'vllm_server_model: RedHatAI/Qwen3.8-27B-INT4' in vllm_defaults"
+          - "'vllm_server_model: SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16' in vllm_defaults"
+          - "'vllm_server_quantization: gptq' in vllm_defaults"
+          - "'vllm_server_kv_cache_dtype: fp8' in vllm_defaults"
           - "'num_speculative_tokens: 3' in vllm_defaults"
           - "'device_selector: level_zero:0,1' in vllm_defaults"
           - "'data_parallel_size: 2' in vllm_defaults"
           - "'port: 8081' not in vllm_defaults"
           - "'vllm_server_enable_prefix_caching: false' in vllm_defaults"
-          - "'vllm_server_language_model_only: true' in vllm_defaults"
+          - "'vllm_server_language_model_only: false' in vllm_defaults"
 
     - name: Assert vLLM topology, pinning, and canary safeguards
       ansible.builtin.assert:
@@ -168,8 +170,9 @@
           - benchmark_suite.preconditioning_requests_per_concurrency == 5
           - benchmark_suite.concurrency_levels == [1, 2, 4, 8]
           - benchmark_suite.output_tps_cv_limit_percent == 5.0
-          - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128']
-          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random']
+          - benchmark_suite.cases | map(attribute='id') | list == ['pp128-tg256', 'pp512-tg256', 'pp2048-tg128', 'mm256-pp512-tg128']
+          - benchmark_suite.cases | map(attribute='dataset') | list == ['random', 'random', 'random', 'random-mm']
+          - "benchmark_suite.cases[3].limit_mm_per_prompt == {'image': 1, 'video': 0}"
           - "'--random-mm-base-items-per-request' in benchmark_round_tasks"
           - "'--random-mm-limit-mm-per-prompt' in benchmark_round_tasks"
           - "benchmark_round_tasks.count('      - vllm') == 1"

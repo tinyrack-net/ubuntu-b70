@@ -15,6 +15,7 @@
     hurl_image: >-
       ghcr.io/orange-opensource/hurl:8.0.1@sha256:49a02dc39d7084e5a6e8c57e2d4754ef102e4ee3761a02ef6dc0e305ab1a832d
     api_test_dir: "{{ playbook_dir }}/../tests/api"
+    api_test_jobs: 1
   tasks:
     - name: Run Hurl tests with temporary credentials
       block:
@@ -50,6 +51,8 @@
               - "{{ hurl_variables_dir.path }}/variables:/run/secrets/hurl-variables:ro"
               - "{{ hurl_image }}"
               - --test
+              - --jobs
+              - "{{ api_test_jobs | string }}"
               - --variables-file
               - /run/secrets/hurl-variables
               - /tests/health.hurl

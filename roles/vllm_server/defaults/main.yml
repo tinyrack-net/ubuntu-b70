@@ -7,30 +7,38 @@ vllm_server_legacy_hf_cache_dir: /var/lib/llama-server/huggingface
 
 vllm_server_image: >-
   intel/llm-scaler-vllm:0.21.0-b3.1@sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b
-vllm_server_model: RedHatAI/Qwen3.8-27B-INT4
-vllm_server_model_revision: 2fb0debc365fb6c1683d7d3ad7722470919627a8
+vllm_server_model: SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16
+vllm_server_model_revision: e28c5f952bdd5d814297a07d85a064a87af26a3f
 vllm_server_model_files:
-  - name: model.safetensors
-    sha256: f078f51aed0c1dba613c1759487004ee06aba1a290606b6be125f59ab710959e
-  - name: model_mtp.safetensors
-    sha256: 1d8268aa85ace093a561e3e7b63b9d390dac1cd55a90cd55b5ec509c3c9da9fe
-vllm_server_tokenizer: Qwen/Qwen3.8-27B
-vllm_server_tokenizer_revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0
-vllm_server_quantization: compressed-tensors
+  - name: model-00001-of-00005.safetensors
+    sha256: 30c8e2b1c82cdcc840848b5c98bafe2f74269b1e6472a053ce7d7b2d002f39a7
+  - name: model-00002-of-00005.safetensors
+    sha256: ff66eaf6ecc6e4b214f281ac532dcfcb07c60d5a8c78cf145bc93c38c00c024e
+  - name: model-00003-of-00005.safetensors
+    sha256: 15284cb88d52ea1648b4fcc68901286d7c4795388e05ae1e143c8026fcb0be44
+  - name: model-00004-of-00005.safetensors
+    sha256: 878ae6ebc9553de5340df0d6097aa319f58650382c89e474b39d0c0a98e76932
+  - name: model-00005-of-00005.safetensors
+    sha256: 2a6ebd04c77c2d5ce5952ca81a4197f1c34f712a00c293a25242ec27ac413729
+vllm_server_tokenizer: SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16
+vllm_server_tokenizer_revision: e28c5f952bdd5d814297a07d85a064a87af26a3f
+vllm_server_quantization: gptq
 vllm_server_served_model_name: Qwen3.8-27B
-vllm_server_language_model_only: true
+vllm_server_language_model_only: false
 vllm_server_limit_mm_per_prompt:
-  image: 0
+  image: 1
   video: 0
-vllm_server_mm_processor_kwargs: {}
+vllm_server_mm_processor_kwargs:
+  max_pixels: 1048576
+  min_pixels: 65536
 vllm_server_mm_processor_cache_type: shm
 vllm_server_mm_processor_cache_gb: "1"
-vllm_server_context_size: 118784
+vllm_server_context_size: 131072
 vllm_server_max_num_seqs: 4
 vllm_server_max_num_batched_tokens: 2048
 vllm_server_data_parallel_size: 1
 vllm_server_gpu_memory_utilization: "0.92"
-vllm_server_kv_cache_dtype: auto
+vllm_server_kv_cache_dtype: fp8
 vllm_server_enable_xpu_graph: false
 vllm_server_enable_prefix_caching: false
 vllm_server_enforce_eager: false
