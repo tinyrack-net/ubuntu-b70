@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "comparison_id": "vllm028-vs-llm-scaler",
+  "common_configuration": {
+    "model": "RedHatAI/Qwen3.8-27B-INT4",
+    "model_revision": "2fb0debc365fb6c1683d7d3ad7722470919627a8",
+    "data_parallel_size": 2,
+    "max_model_len": 118784,
+    "max_num_seqs_per_rank": 4,
+    "max_num_batched_tokens": 2048,
+    "gpu_memory_utilization": 0.92,
+    "kv_cache_dtype": "auto",
+    "xpu_graph": false,
+    "prefix_caching": false,
+    "language_model_only": true
+  },
+  "screening": {
+    "llm_scaler_mtp3": {
+      "source": "../20260901T080114Z-ea55abf21407-scaler-mtp3-screen-completions/summary.json",
+      "status": "passed",
+      "c1": {
+        "output_tps_median": 48.8523525701084,
+        "post_first_decode_tps_median": 54.186644471452496,
+        "ttft_ms_median": 316.7616689997885,
+        "tpot_ms_median": 18.45473196862811,
+        "output_tps_cv_percent": 0.31861558869075945,
+        "acceptance_rate_percent": 76.86375321336762,
+        "acceptance_length": 3.3059125964010283
+      },
+      "c8": {
+        "output_tps_median": 272.3977301032063,
+        "post_first_decode_tps_median": 47.5638335536659,
+        "ttft_ms_median": 494.14710150040264,
+        "tpot_ms_median": 21.024377668627316,
+        "output_tps_cv_percent": 2.002879167179492,
+        "acceptance_rate_percent": 77.80305492362692,
+        "acceptance_length": 3.3340916477088074
+      }
+    },
+    "vllm_028_mtp3": {
+      "source": "../20260901T081752Z-f75fbb9-vllm028-mtp3-compatibility/failure.json",
+      "status": "compatibility_failure",
+      "stage": "engine_kv_cache_initialization",
+      "available_kv_cache_gib": 7.38,
+      "required_kv_cache_gib": 8.36,
+      "estimated_max_model_len": 103168
+    },
+    "llm_scaler_mtp_off": {
+      "source": "../20260901T091129Z-e4dac6b6dd8d-scaler-mtp-off-screen-completions-rerun/summary.json",
+      "status": "variability_failure",
+      "c1": {
+        "output_tps_median": 23.776252189494556,
+        "post_first_decode_tps_median": 24.31800325333717,
+        "ttft_ms_median": 292.0368340001005,
+        "tpot_ms_median": 41.12179727843278,
+        "output_tps_cv_percent": 0.9651687623060599
+      },
+      "c8": {
+        "output_tps_median": 158.5018897835303,
+        "post_first_decode_tps_median": 21.77402284789822,
+        "ttft_ms_median": 656.1688314998264,
+        "tpot_ms_median": 45.92628596862738,
+        "output_tps_cv_percent": 5.738292253788609
+      }
+    },
+    "vllm_028_mtp_off": {
+      "source": "../20260901T093239Z-49318dd-vllm028-mtp-off-compatibility/failure.json",
+      "status": "compatibility_failure",
+      "stage": "model_initialization_second_dp_rank",
+      "error": "UR_RESULT_ERROR_DEVICE_LOST"
+    }
+  },
+  "runtime_percent_differences": {
+    "mtp3": null,
+    "mtp_off": null,
+    "reason": "Stock vLLM 0.28 produced no valid benchmark measurements under either matching configuration."
+  },
+  "llm_scaler_mtp3_vs_mtp_off_percent": {
+    "c1_output_tps": 105.46700203530656,
+    "c1_post_first_decode_tps": 122.82522091535802,
+    "c8_output_tps": 71.85771758004034,
+    "c8_post_first_decode_tps": 118.44302215498543
+  },
+  "canonical_suite_executed": false,
+  "canonical_suite_skip_reason": "No corresponding runtime pair passed screening.",
+  "restored_operation": {
+    "profile": "qwen-3.8-27b",
+    "runtime": "llm-scaler-vllm:0.21.0-b3.1",
+    "mtp_tokens": 3,
+    "container_restart_count": 0,
+    "api_requests_passed": 6,
+    "content_canary_active": true,
+    "content_canary_enabled": true
+  }
+}

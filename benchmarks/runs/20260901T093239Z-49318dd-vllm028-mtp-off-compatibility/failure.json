@@ -28,8 +28,15 @@
     "swap_used_kib": 32
   },
   "restoration": {
-    "attempted": false,
-    "completed": false,
-    "restored_profile": "qwen-3.8-27b"
+    "attempted": true,
+    "completed": true,
+    "required_host_reboot": true,
+    "restored_profile": "qwen-3.8-27b",
+    "restored_image": "intel/llm-scaler-vllm:0.21.0-b3.1@sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "restart_count": 0,
+    "api_requests_passed": 6,
+    "content_canary_active": true,
+    "content_canary_enabled": true,
+    "current_boot_kernel_faults": 0
   }
 }
