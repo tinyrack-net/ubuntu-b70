@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "candidate_id": "vllm028-mtp-off",
+  "git_commit": "49318dd",
+  "image": "vllm/vllm-openai-xpu:v0.28.0-x86_64@sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8",
+  "model": "RedHatAI/Qwen3.8-27B-INT4",
+  "model_revision": "2fb0debc365fb6c1683d7d3ad7722470919627a8",
+  "configuration": {
+    "data_parallel_size": 2,
+    "data_parallel_backend": "mp",
+    "max_model_len": 118784,
+    "max_num_seqs_per_rank": 4,
+    "max_num_batched_tokens": 2048,
+    "gpu_memory_utilization": 0.92,
+    "kv_cache_dtype": "auto",
+    "prefix_caching": false,
+    "xpu_graph": false,
+    "speculative_config": null
+  },
+  "status": "compatibility_failure",
+  "stage": "model_initialization_second_dp_rank",
+  "restart_count_observed": 0,
+  "error": "level_zero backend failed with error: 20 (UR_RESULT_ERROR_DEVICE_LOST)",
+  "benchmark_started": false,
+  "restart_policy": "no",
+  "host_memory_after_exit": {
+    "available_gib": 58,
+    "swap_used_kib": 32
+  },
+  "restoration": {
+    "attempted": false,
+    "completed": false,
+    "restored_profile": "qwen-3.8-27b"
+  }
+}
