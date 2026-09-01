@@ -1,0 +1,4 @@
+---
+base_vllm_swap_path: /swap-vllm.img
+base_vllm_swap_size_gib: 32
+base_vllm_swappiness: 10

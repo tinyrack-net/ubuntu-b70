@@ -3,6 +3,7 @@ vllm_server_install_dir: /opt/vllm-server
 vllm_server_api_key_path: /etc/vllm-server/api-key
 vllm_server_data_dir: /var/lib/vllm-server
 vllm_server_hf_cache_dir: "{{ vllm_server_data_dir }}/huggingface"
+vllm_server_compile_cache_dir: "{{ vllm_server_data_dir }}/vllm-cache"
 vllm_server_legacy_hf_cache_dir: /var/lib/llama-server/huggingface
 vllm_server_container_name: vllm-server
 vllm_server_profile_state_path: "{{ vllm_server_data_dir }}/active-profile.json"
@@ -12,7 +13,7 @@ vllm_server_content_canary_enabled: true
 vllm_server_content_canary_interval: 5min
 vllm_server_content_canary_failure_threshold: 2
 vllm_server_content_canary_marker: B70_CANARY_OK
-vllm_server_health_retries: 60
+vllm_server_health_retries: 120
 vllm_server_health_delay: 5
 vllm_server_retired_content_canary_instances:
   - vllm-server-1

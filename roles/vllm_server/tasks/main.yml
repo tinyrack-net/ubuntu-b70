@@ -110,6 +110,15 @@
     mode: "0755"
   become: true
 
+- name: Create the persistent vLLM compile cache directory
+  ansible.builtin.file:
+    path: "{{ vllm_server_compile_cache_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
 - name: Install the vLLM API key file
   ansible.builtin.copy:
     content: "{{ llm_api_key }}\n"
@@ -196,6 +205,21 @@
       register: vllm_server_active_state_raw
       become: true
       when: vllm_server_active_state.stat.exists
+
+    - name: Check the vLLM content canary timer
+      ansible.builtin.stat:
+        path: "/etc/systemd/system/vllm-content-canary-{{ vllm_server_container_name }}.timer"
+      register: vllm_server_content_canary_timer
+      become: true
+
+    - name: Stop the vLLM content canary during profile deployment
+      ansible.builtin.systemd_service:
+        name: "vllm-content-canary-{{ vllm_server_container_name }}.timer"
+        state: stopped
+      become: true
+      when:
+        - vllm_server_content_canary_enabled | bool
+        - vllm_server_content_canary_timer.stat.exists
 
     - name: Stage the selected static Compose file
       ansible.builtin.copy:
@@ -397,6 +421,17 @@
       delay: "{{ vllm_server_health_delay }}"
       no_log: true
       when: vllm_server_active_compose_raw is defined and vllm_server_active_compose_raw.content is defined
+
+    - name: Restore the vLLM content canary after rollback
+      ansible.builtin.systemd_service:
+        name: "vllm-content-canary-{{ vllm_server_container_name }}.timer"
+        enabled: true
+        state: started
+        daemon_reload: true
+      become: true
+      when:
+        - vllm_server_content_canary_enabled | bool
+        - vllm_server_content_canary_timer.stat.exists | default(false)
 
     - name: Report the failed profile deployment
       ansible.builtin.fail:

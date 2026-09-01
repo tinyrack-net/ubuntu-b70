@@ -14,3 +14,79 @@
       - python3-debian
     state: present
   become: true
+
+- name: Check the vLLM startup swap file
+  ansible.builtin.stat:
+    path: "{{ base_vllm_swap_path }}"
+  register: base_vllm_swap
+
+- name: Allocate the vLLM startup swap file
+  ansible.builtin.command:
+    argv:
+      - fallocate
+      - --length
+      - "{{ base_vllm_swap_size_gib }}G"
+      - "{{ base_vllm_swap_path }}"
+    creates: "{{ base_vllm_swap_path }}"
+  register: base_vllm_swap_allocation
+  become: true
+  when: not ansible_check_mode
+
+- name: Protect the vLLM startup swap file
+  ansible.builtin.file:
+    path: "{{ base_vllm_swap_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+  when: base_vllm_swap.stat.exists or not ansible_check_mode
+
+- name: Format the new vLLM startup swap file
+  ansible.builtin.command:
+    argv: [mkswap, "{{ base_vllm_swap_path }}"]
+  become: true
+  when:
+    - not ansible_check_mode
+    - base_vllm_swap_allocation.changed
+
+- name: Persist the vLLM startup swap file
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: "^{{ base_vllm_swap_path | regex_escape }}\\s"
+    line: "{{ base_vllm_swap_path }} none swap sw 0 0"
+    state: present
+  become: true
+
+- name: Read active swap files
+  ansible.builtin.command:
+    argv: [swapon, --show=NAME, --noheadings]
+  register: base_active_swap
+  changed_when: false
+  check_mode: false
+  become: true
+
+- name: Enable the vLLM startup swap file
+  ansible.builtin.command:
+    argv: [swapon, "{{ base_vllm_swap_path }}"]
+  become: true
+  when:
+    - not ansible_check_mode
+    - base_vllm_swap_path not in base_active_swap.stdout_lines
+
+- name: Configure low-swappiness vLLM startup memory
+  ansible.builtin.copy:
+    content: "vm.swappiness={{ base_vllm_swappiness }}\n"
+    dest: /etc/sysctl.d/90-vllm-swap.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: base_vllm_swappiness_config
+  become: true
+
+- name: Apply low-swappiness vLLM startup memory
+  ansible.builtin.command:
+    argv: [sysctl, --load=/etc/sysctl.d/90-vllm-swap.conf]
+  become: true
+  when:
+    - not ansible_check_mode
+    - base_vllm_swappiness_config.changed

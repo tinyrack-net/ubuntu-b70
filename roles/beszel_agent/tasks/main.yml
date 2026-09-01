@@ -117,7 +117,7 @@
 
 - name: Confirm the Beszel Agent WebSocket connection
   ansible.builtin.command:
-    argv: [docker, logs, --since, 5m, beszel-agent]
+    argv: [docker, logs, --tail, "200", beszel-agent]
   register: beszel_agent_logs
   changed_when: false
   retries: 18

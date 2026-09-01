@@ -1,7 +1,7 @@
 ---
 services:
   vllm-server:
-    image: ubuntu-b70/qwen38-xpu:7025ef4
+    image: intel/llm-scaler-vllm:0.21.0-b3.1@sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b
     pull_policy: never
     container_name: vllm-server
     restart: unless-stopped
@@ -12,12 +12,9 @@ services:
     ipc: host
     privileged: true
     environment:
-      ONEAPI_DEVICE_SELECTOR: level_zero:0
-      VLLM_XPU_ENABLE_XPU_GRAPH: "1"
+      ONEAPI_DEVICE_SELECTOR: level_zero:0,1
+      VLLM_XPU_ENABLE_XPU_GRAPH: "0"
       VLLM_WORKER_MULTIPROC_METHOD: spawn
-      B70_MTP_BF16_DRAFT: "1"
-      B70_DRAFT_LMHEAD_INT4: "1"
-      B70_DRAFT_MTP_INT4: "1"
     volumes:
       - "/etc/vllm-server/api-key:/run/secrets/llm_api_key:ro"
       - "/var/lib/vllm-server/huggingface:/root/.cache/huggingface"
@@ -26,25 +23,23 @@ services:
     command:
       - >-
         export VLLM_API_KEY="$$(cat /run/secrets/llm_api_key)";
-        exec vllm serve "SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16"
-        --revision "e28c5f952bdd5d814297a07d85a064a87af26a3f"
-        --tokenizer "SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16"
-        --tokenizer-revision "e28c5f952bdd5d814297a07d85a064a87af26a3f"
+        exec vllm serve "RedHatAI/Qwen3.8-27B-INT4"
+        --revision "2fb0debc365fb6c1683d7d3ad7722470919627a8"
+        --tokenizer "Qwen/Qwen3.8-27B"
+        --tokenizer-revision "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
         --served-model-name "Qwen3.8-27B"
         --host 0.0.0.0 --port 8080
         --dtype float16
-        --quantization gptq
-        --max-model-len 131072
-        --max-num-seqs 64
-        --max-num-batched-tokens 8192
+        --quantization compressed-tensors
+        --max-model-len 118784
+        --max-num-seqs 4
+        --max-num-batched-tokens 2048
+        --data-parallel-size 2
+        --data-parallel-backend mp
         --gpu-memory-utilization 0.92
         --no-enable-prefix-caching
-        --kv-cache-dtype fp8
-        --speculative-config '{"method":"mtp","num_speculative_tokens":4}'
-        --limit-mm-per-prompt '{"image":{"count":1,"width":1024,"height":1024},"video":0}'
-        --mm-processor-kwargs '{"max_pixels":1048576}'
-        --mm-processor-cache-type shm
-        --mm-processor-cache-gb 1
+        --speculative-config '{"method":"qwen3_5_mtp","num_speculative_tokens":3}'
+        --language-model-only
         --enable-auto-tool-choice
         --tool-call-parser qwen3_xml
         --reasoning-parser qwen3

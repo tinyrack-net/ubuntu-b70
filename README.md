@@ -41,15 +41,17 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 
 ## 운영 설정
 
-- `qwen-3.8-27b`: 공식 vLLM XPU 0.27.2 개발판 기반, context 131072, TP1,
-  max sequences 64, MTP4 Draft-INT4, XPU Graph, FP8 KV, image 1(최대 1024x1024)
+- `qwen-3.8-27b`: Intel llm-scaler b3.1과 RedHat INT4 체크포인트 기반,
+  context 118784, DP2, rank당 max sequences 4(전체 C8), batch 2048, MTP3,
+  XPU Graph OFF, auto KV, text-only. 별도 `model_mtp.safetensors`를 사용해 두 rank의
+  동시 기동 메모리 피크를 제한하며, 32GiB 보조 swap과 swappiness 10을 유지한다.
 - `gemma-4-31b`: Intel llm-scaler b3.1 기반에 upstream Gemma 4 MTP embedding 수정만
   고정 적용, Google QAT W4A16, context 32768, TP1, max sequences 1,
   assistant MTP4, XPU Graph, FP8 KV, text-only
 - `gemma-4-12b`: Intel llm-scaler b3.1 기반에 Gemma 4 Unified MTP와 XPU attention
   descale 수정을 고정 적용, Google 원본을 online symmetric INT4 group 32로 양자화, context 131072, DP2,
   rank당 max sequences 4(전체 C8), assistant MTP6, XPU Graph, auto KV, image 4/audio 1/video 1
-- `vllm-server`/8080 API에는 5분 주기의 content canary가 적용된다. Gemma 4 12B의
+- `vllm-server`/8080 API에는 5분 주기의 content canary가 적용된다. Qwen과 Gemma 4 12B의
   GPU 두 장은 DP2로 독립 실행하며, TP2는 collective 비용 때문에 사용하지 않는다.
 - Beszel Agent 0.18.8은 outbound WebSocket으로 Hub에 연결하며 CPU, RAM, disk, network,
   Docker 컨테이너와 B70 두 장의 utilization, VRAM, temperature, power를 수집한다.

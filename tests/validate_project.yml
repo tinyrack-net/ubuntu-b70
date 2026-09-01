@@ -24,6 +24,8 @@
         gemma12_profile: "{{ lookup('file', root ~ '/profiles/gemma-4-12b/manifest.yml') | from_yaml }}"
         gemma12_compose: "{{ lookup('file', root ~ '/profiles/gemma-4-12b/compose.yml') }}"
         makefile: "{{ lookup('file', root ~ '/Makefile') }}"
+        base_defaults: "{{ lookup('file', root ~ '/roles/base/defaults/main.yml') }}"
+        base_tasks: "{{ lookup('file', root ~ '/roles/base/tasks/main.yml') }}"
         intel_defaults: "{{ lookup('file', root ~ '/roles/intel_gpu/defaults/main.yml') }}"
         intel_tasks: "{{ lookup('file', root ~ '/roles/intel_gpu/tasks/main.yml') }}"
         beszel_defaults: "{{ lookup('file', root ~ '/roles/beszel_agent/defaults/main.yml') }}"
@@ -105,19 +107,25 @@
         that:
           - qwen_profile.slug == 'qwen-3.8-27b'
           - qwen_profile.served_model_name == 'Qwen3.8-27B'
-          - qwen_profile.image.expected_id == 'sha256:2b5d5a7346a801365234acb5eb53754fb0de73e194c7010076013ffa2391f0d7'
-          - qwen_profile.model.revision == 'e28c5f952bdd5d814297a07d85a064a87af26a3f'
-          - qwen_profile.model.files | length == 5
-          - "'--max-model-len 131072' in qwen_compose"
-          - "'--max-num-seqs 64' in qwen_compose"
-          - "'--kv-cache-dtype fp8' in qwen_compose"
+          - qwen_profile.image.expected_id == 'sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b'
+          - qwen_profile.model.revision == '2fb0debc365fb6c1683d7d3ad7722470919627a8'
+          - qwen_profile.model.files | length == 2
+          - "'--max-model-len 118784' in qwen_compose"
+          - "'ONEAPI_DEVICE_SELECTOR: level_zero:0,1' in qwen_compose"
+          - "'VLLM_XPU_ENABLE_XPU_GRAPH: \"0\"' in qwen_compose"
+          - "'--max-num-seqs 4' in qwen_compose"
+          - "'--max-num-batched-tokens 2048' in qwen_compose"
+          - "'--data-parallel-size 2' in qwen_compose"
+          - "'--data-parallel-backend mp' in qwen_compose"
+          - "'--api-server-count' not in qwen_compose"
+          - "'--kv-cache-dtype' not in qwen_compose"
           - "'--gpu-memory-utilization 0.92' in qwen_compose"
-          - "'--limit-mm-per-prompt' in qwen_compose"
-          - "'--mm-processor-cache-type shm' in qwen_compose"
-          - "'--language-model-only' not in qwen_compose"
-          - "'num_speculative_tokens\":4' in qwen_compose"
-          - "'B70_DRAFT_LMHEAD_INT4' in qwen_compose"
-          - "'B70_DRAFT_MTP_INT4' in qwen_compose"
+          - "'--limit-mm-per-prompt' not in qwen_compose"
+          - "'--mm-processor-cache-type' not in qwen_compose"
+          - "'--language-model-only' in qwen_compose"
+          - "'num_speculative_tokens\":3' in qwen_compose"
+          - "'B70_DRAFT_LMHEAD_INT4' not in qwen_compose"
+          - "'B70_DRAFT_MTP_INT4' not in qwen_compose"
           - gemma_profile.slug == 'gemma-4-31b'
           - gemma_profile.served_model_name == 'gemma-4-31B-it'
           - gemma_profile.image.expected_id == 'sha256:7343a52a92d943d5eb3199e6e5e9b74c4d76568556739a4b07b163963feb0297'
@@ -199,12 +207,19 @@
           - "'Load the selected profile manifest' in vllm_tasks"
           - "'Deploy the selected profile atomically' in vllm_tasks"
           - "'Restore the previous production Compose file' in vllm_tasks"
+          - "'Stop the vLLM content canary during profile deployment' in vllm_tasks"
+          - "'Restore the vLLM content canary after rollback' in vllm_tasks"
           - "'Download and verify selected model artifacts before downtime' in vllm_tasks"
           - "'sha256sum' in vllm_prepare_artifact"
           - "'vllm_server_cache_low_watermark_gib: 20' in vllm_defaults"
           - "'vllm_server_cache_target_gib: 30' in vllm_defaults"
           - "'check_mode: false' in vllm_tasks"
           - "'vllm_server_content_canary_failure_threshold: 2' in vllm_defaults"
+          - "'vllm_server_health_retries: 120' in vllm_defaults"
+          - "'base_vllm_swap_size_gib: 32' in base_defaults"
+          - "'base_vllm_swappiness: 10' in base_defaults"
+          - "'Persist the vLLM startup swap file' in base_tasks"
+          - "'Enable the vLLM startup swap file' in base_tasks"
           - "'vllm-gemma-candidate' in vllm_defaults"
           - "'Stop and disable retired content canary timers' in vllm_tasks"
           - "'Reload systemd after retiring content canaries' in vllm_tasks"
