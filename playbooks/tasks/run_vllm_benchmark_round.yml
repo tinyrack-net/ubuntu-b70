@@ -6,11 +6,11 @@
       - bench
       - serve
       - --backend
-      - openai-chat
+      - "{{ benchmark_api_backend }}"
       - --base-url
       - http://127.0.0.1:8080
       - --endpoint
-      - /v1/chat/completions
+      - "{{ benchmark_api_endpoint }}"
       - --model
       - "{{ benchmark_model }}"
       - --tokenizer

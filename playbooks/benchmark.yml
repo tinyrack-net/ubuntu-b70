@@ -10,6 +10,8 @@
     benchmark_case_ids: []
     benchmark_concurrency_levels: []
     benchmark_round_count: 0
+    benchmark_api_backend: openai-chat
+    benchmark_api_endpoint: /v1/chat/completions
   tasks:
     - name: Validate the requested benchmark profile
       ansible.builtin.assert:
@@ -88,6 +90,12 @@
           - benchmark_selected_concurrency_levels | difference(benchmark_suite.concurrency_levels) | length == 0
           - benchmark_selected_round_count | int >= 1
           - benchmark_selected_round_count | int <= 10
+          - benchmark_api_backend in ['openai', 'openai-chat']
+          - benchmark_api_endpoint in ['/v1/completions', '/v1/chat/completions']
+          - >-
+            (benchmark_api_backend == 'openai' and benchmark_api_endpoint == '/v1/completions')
+            or
+            (benchmark_api_backend == 'openai-chat' and benchmark_api_endpoint == '/v1/chat/completions')
 
     - name: Read the repository commit
       ansible.builtin.command:
@@ -179,6 +187,8 @@
     benchmark_git_clean: "{{ hostvars.localhost.benchmark_git_clean }}"
     benchmark_suite_sha256: "{{ hostvars.localhost.benchmark_suite_sha256 }}"
     benchmark_candidate_id: "{{ hostvars.localhost.benchmark_candidate_id }}"
+    benchmark_api_backend: "{{ hostvars.localhost.benchmark_api_backend }}"
+    benchmark_api_endpoint: "{{ hostvars.localhost.benchmark_api_endpoint }}"
     benchmark_selected_cases: "{{ hostvars.localhost.benchmark_selected_cases }}"
     benchmark_selected_concurrency_levels: "{{ hostvars.localhost.benchmark_selected_concurrency_levels }}"
     benchmark_selected_round_count: "{{ hostvars.localhost.benchmark_selected_round_count }}"
@@ -546,11 +556,11 @@
     - name: Build the sanitized container manifest
       ansible.builtin.set_fact:
         benchmark_container_manifest:
-          id: "{{ benchmark_inspected_container.Id | default(null) }}"
-          image_id: "{{ benchmark_inspected_container.Image | default(null) }}"
-          image_ref: "{{ benchmark_inspected_container.Config.Image | default(null) }}"
-          created: "{{ benchmark_inspected_container.Created | default(null) }}"
-          restart_count: "{{ benchmark_inspected_container.RestartCount | default(null) }}"
+          id: "{{ benchmark_inspected_container.Id | default(none) }}"
+          image_id: "{{ benchmark_inspected_container.Image | default(none) }}"
+          image_ref: "{{ benchmark_inspected_container.Config.Image | default(none) }}"
+          created: "{{ benchmark_inspected_container.Created | default(none) }}"
+          restart_count: "{{ benchmark_inspected_container.RestartCount | default(none) }}"
           entrypoint: "{{ benchmark_inspected_container.Config.Entrypoint | default([]) }}"
           command: >-
             {{
@@ -559,8 +569,8 @@
               | list
             }}
           devices: "{{ benchmark_inspected_container.HostConfig.Devices | default([]) }}"
-          ipc_mode: "{{ benchmark_inspected_container.HostConfig.IpcMode | default(null) }}"
-          privileged: "{{ benchmark_inspected_container.HostConfig.Privileged | default(null) }}"
+          ipc_mode: "{{ benchmark_inspected_container.HostConfig.IpcMode | default(none) }}"
+          privileged: "{{ benchmark_inspected_container.HostConfig.Privileged | default(none) }}"
 
     - name: Build the final objective environment manifest
       ansible.builtin.set_fact:
@@ -591,14 +601,14 @@
             cpu_vcpus: "{{ ansible_facts.processor_vcpus }}"
             memory_mb: "{{ ansible_facts.memtotal_mb }}"
             load_average: "{{ ansible_facts.loadavg | default({}) }}"
-            docker_version: "{{ benchmark_docker_version.stdout | default(null) }}"
-            level_zero_version: "{{ benchmark_level_zero_version.stdout | default(null) }}"
+            docker_version: "{{ benchmark_docker_version.stdout | default(none) }}"
+            level_zero_version: "{{ benchmark_level_zero_version.stdout | default(none) }}"
             gpu_pci: "{{ benchmark_gpu_pci.stdout_lines | default([]) }}"
           runtime:
             versions: "{{ benchmark_runtime_versions.stdout_lines | default([]) }}"
             startup_and_cache_log: "{{ benchmark_runtime_log_summary.stdout_lines | default([]) }}"
             metrics: "{{ benchmark_runtime_metrics.stdout_lines | default([]) }}"
-            production_compose_sha256: "{{ benchmark_compose_stat.stat.checksum | default(null) }}"
+            production_compose_sha256: "{{ benchmark_compose_stat.stat.checksum | default(none) }}"
             container: "{{ benchmark_container_manifest }}"
             model:
               profile: "{{ benchmark_profile.slug }}"
@@ -618,11 +628,13 @@
             selected_round_count: "{{ benchmark_selected_round_count | int }}"
             suite: "{{ benchmark_suite }}"
             command: vllm bench serve
+            api_backend: "{{ benchmark_api_backend }}"
+            api_endpoint: "{{ benchmark_api_endpoint }}"
             invocations: "{{ benchmark_invocations }}"
             raw_results: "{{ benchmark_result_checksums }}"
           telemetry:
-            before: "{{ benchmark_gpu_before.stdout | default(null) }}"
-            after: "{{ benchmark_gpu_after.stdout | default(null) }}"
+            before: "{{ benchmark_gpu_before.stdout | default(none) }}"
+            after: "{{ benchmark_gpu_after.stdout | default(none) }}"
 
     - name: Save the final environment manifest
       ansible.builtin.copy:

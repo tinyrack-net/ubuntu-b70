@@ -1,0 +1,7 @@
+{
+    "message": "The command exited with a non-zero return code.",
+    "rc": 1,
+    "stderr": "",
+    "stdout": "false",
+    "task": "Validate the detailed native round result"
+}
