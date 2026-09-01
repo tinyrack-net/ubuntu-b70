@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "candidate_id": "vllm028-mtp3",
+  "git_commit": "f75fbb9ae423d38bf5e42b6b401e15cf19160ea9",
+  "image": "vllm/vllm-openai-xpu:v0.28.0-x86_64@sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8",
+  "model": "RedHatAI/Qwen3.8-27B-INT4",
+  "model_revision": "2fb0debc365fb6c1683d7d3ad7722470919627a8",
+  "configuration": {
+    "data_parallel_size": 2,
+    "data_parallel_backend": "mp",
+    "max_model_len": 118784,
+    "max_num_seqs_per_rank": 4,
+    "max_num_batched_tokens": 2048,
+    "gpu_memory_utilization": 0.92,
+    "kv_cache_dtype": "auto",
+    "prefix_caching": false,
+    "xpu_graph": false,
+    "speculative_config": {
+      "method": "mtp",
+      "num_speculative_tokens": 3
+    }
+  },
+  "status": "compatibility_failure",
+  "stage": "engine_kv_cache_initialization",
+  "restart_count_observed": 1,
+  "required_kv_cache_gib": 8.36,
+  "available_kv_cache_gib": 7.38,
+  "estimated_max_model_len": 103168,
+  "error": "To serve at least one request with the model's max seq len (118784), 8.36 GiB KV cache is needed, which is larger than the available KV cache memory (7.38 GiB).",
+  "benchmark_started": false,
+  "restoration": {
+    "attempted": true,
+    "completed": false,
+    "reason": "The host became unreachable over SSH before the llm-scaler profile could be reapplied."
+  }
+}
