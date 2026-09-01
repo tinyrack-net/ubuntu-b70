@@ -35,7 +35,7 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 ## 운영 설정
 
 - `qwen-3.8-27b`: 공식 vLLM XPU 0.27.2 개발판 기반, context 131072, TP1,
-  max sequences 64, MTP4 Draft-INT4, XPU Graph, FP8 KV, text-only
+  max sequences 64, MTP4 Draft-INT4, XPU Graph, FP8 KV, image 1(최대 1024x1024)
 - `gemma-4-31b`: Intel llm-scaler b3.1 기반에 upstream Gemma 4 MTP embedding 수정만
   고정 적용, Google QAT W4A16, context 32768, TP1, max sequences 1,
   assistant MTP4, XPU Graph, FP8 KV, text-only

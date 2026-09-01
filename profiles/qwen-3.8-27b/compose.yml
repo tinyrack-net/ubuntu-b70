@@ -31,17 +31,20 @@ services:
         --tokenizer "SergiioB/Qwen3.8-27B-GPTQ-Int4-sym-G128-MTP-BF16"
         --tokenizer-revision "e28c5f952bdd5d814297a07d85a064a87af26a3f"
         --served-model-name "Qwen3.8-27B"
-        --language-model-only
         --host 0.0.0.0 --port 8080
         --dtype float16
         --quantization gptq
         --max-model-len 131072
         --max-num-seqs 64
         --max-num-batched-tokens 8192
-        --gpu-memory-utilization 0.88
+        --gpu-memory-utilization 0.92
         --no-enable-prefix-caching
         --kv-cache-dtype fp8
         --speculative-config '{"method":"mtp","num_speculative_tokens":4}'
+        --limit-mm-per-prompt '{"image":{"count":1,"width":1024,"height":1024},"video":0}'
+        --mm-processor-kwargs '{"max_pixels":1048576}'
+        --mm-processor-cache-type shm
+        --mm-processor-cache-gb 1
         --enable-auto-tool-choice
         --tool-call-parser qwen3_xml
         --reasoning-parser qwen3
