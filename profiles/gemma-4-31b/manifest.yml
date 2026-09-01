@@ -1,5 +1,5 @@
 ---
-slug: gemma-31b
+slug: gemma-4-31b
 served_model_name: gemma-4-31B-it
 image:
   ref: ubuntu-b70/gemma4-xpu:b3.1-mtp-embedding

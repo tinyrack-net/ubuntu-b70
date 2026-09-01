@@ -1,5 +1,5 @@
 ---
-slug: gemma-12b
+slug: gemma-4-12b
 served_model_name: gemma-4-12B-it
 image:
   ref: ubuntu-b70/gemma4-xpu:b3.1-unified-mtp

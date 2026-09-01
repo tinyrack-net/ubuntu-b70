@@ -19,10 +19,10 @@
         vllm_cleanup_cache: "{{ lookup('file', root ~ '/roles/vllm_server/tasks/cleanup_cache.yml') }}"
         qwen_profile: "{{ lookup('file', root ~ '/profiles/qwen-3.8-27b/manifest.yml') | from_yaml }}"
         qwen_compose: "{{ lookup('file', root ~ '/profiles/qwen-3.8-27b/compose.yml') }}"
-        gemma_profile: "{{ lookup('file', root ~ '/profiles/gemma-31b/manifest.yml') | from_yaml }}"
-        gemma_compose: "{{ lookup('file', root ~ '/profiles/gemma-31b/compose.yml') }}"
-        gemma12_profile: "{{ lookup('file', root ~ '/profiles/gemma-12b/manifest.yml') | from_yaml }}"
-        gemma12_compose: "{{ lookup('file', root ~ '/profiles/gemma-12b/compose.yml') }}"
+        gemma_profile: "{{ lookup('file', root ~ '/profiles/gemma-4-31b/manifest.yml') | from_yaml }}"
+        gemma_compose: "{{ lookup('file', root ~ '/profiles/gemma-4-31b/compose.yml') }}"
+        gemma12_profile: "{{ lookup('file', root ~ '/profiles/gemma-4-12b/manifest.yml') | from_yaml }}"
+        gemma12_compose: "{{ lookup('file', root ~ '/profiles/gemma-4-12b/compose.yml') }}"
         makefile: "{{ lookup('file', root ~ '/Makefile') }}"
         intel_defaults: "{{ lookup('file', root ~ '/roles/intel_gpu/defaults/main.yml') }}"
         intel_tasks: "{{ lookup('file', root ~ '/roles/intel_gpu/tasks/main.yml') }}"
@@ -78,7 +78,7 @@
         checksum_algorithm: sha256
       register: gemma_runtime_patch
 
-    - name: Calculate the Gemma 12B patch checksums
+    - name: Calculate the Gemma 4 12B patch checksums
       ansible.builtin.stat:
         path: "{{ root }}/{{ item.value }}"
         checksum_algorithm: sha256
@@ -104,7 +104,7 @@
           - "'num_speculative_tokens\":4' in qwen_compose"
           - "'B70_DRAFT_LMHEAD_INT4' in qwen_compose"
           - "'B70_DRAFT_MTP_INT4' in qwen_compose"
-          - gemma_profile.slug == 'gemma-31b'
+          - gemma_profile.slug == 'gemma-4-31b'
           - gemma_profile.served_model_name == 'gemma-4-31B-it'
           - gemma_profile.image.expected_id == 'sha256:7343a52a92d943d5eb3199e6e5e9b74c4d76568556739a4b07b163963feb0297'
           - gemma_profile.image.patch_sha256 == 'a6f2ae363ebe0473192d21d40131408abe1b08b9f5f488e5c2c647ed553409b2'
@@ -115,7 +115,7 @@
           - "'--kv-cache-dtype fp8' in gemma_compose"
           - "'--tool-call-parser gemma4' in gemma_compose"
           - "'num_speculative_tokens\":4' in gemma_compose"
-          - gemma12_profile.slug == 'gemma-12b'
+          - gemma12_profile.slug == 'gemma-4-12b'
           - gemma12_profile.served_model_name == 'gemma-4-12B-it'
           - gemma12_profile.image.expected_id == 'sha256:23e1bb365d25800039d5ae6e3acd707e7204ba2e0b87d18cd644306accfa6163'
           - gemma12_profile.model.revision == '707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7'
@@ -147,8 +147,8 @@
         argv: [docker, compose, --project-name, vllm-server, --file, "{{ item }}", config, --quiet]
       loop:
         - "{{ root }}/profiles/qwen-3.8-27b/compose.yml"
-        - "{{ root }}/profiles/gemma-31b/compose.yml"
-        - "{{ root }}/profiles/gemma-12b/compose.yml"
+        - "{{ root }}/profiles/gemma-4-31b/compose.yml"
+        - "{{ root }}/profiles/gemma-4-12b/compose.yml"
       changed_when: false
 
     - name: Assert profile deployment and canary safeguards
