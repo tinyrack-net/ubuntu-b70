@@ -16,6 +16,13 @@ ansible-vault edit inventories/group_vars/all/vault.yml
 
 `vault_ubuntu_gpu_become_password`의 빈 문자열을 실제 sudo 비밀번호로 바꾼다.
 
+Beszel Agent를 `https://monitor.winetree94.com`에 등록하려면 같은 Vault에 Hub의
+Universal Token을 추가한다. ED25519 공개키는 비밀이 아니므로 공통 변수에 고정한다.
+
+```yaml
+vault_beszel_universal_token: <Settings / Tokens의 Universal Token>
+```
+
 ## 실행
 
 ```bash
@@ -44,6 +51,9 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
   rank당 max sequences 4(전체 C8), assistant MTP6, XPU Graph, auto KV, image 4/audio 1/video 1
 - `vllm-server`/8080 API에는 5분 주기의 content canary가 적용된다. Gemma 4 12B의
   GPU 두 장은 DP2로 독립 실행하며, TP2는 collective 비용 때문에 사용하지 않는다.
+- Beszel Agent 0.18.8은 outbound WebSocket으로 Hub에 연결하며 CPU, RAM, disk, network,
+  Docker 컨테이너와 B70 두 장의 utilization, VRAM, temperature, power를 수집한다.
+  SSH listener는 비활성화하며 vLLM TPS와 TTFT는 기존 API benchmark로 측정한다.
 - vLLM Compose service와 컨테이너 이름은 `vllm-server`, llama.cpp는
   `llama-server`를 사용한다.
 - `vllm_server`와 `llama_server` role은 엔진별 task와 Compose 구성을 독립적으로

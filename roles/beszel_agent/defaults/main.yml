@@ -1,0 +1,11 @@
+---
+beszel_agent_install_dir: /opt/beszel-agent
+beszel_agent_config_dir: /etc/beszel-agent
+beszel_agent_data_dir: /var/lib/beszel-agent
+beszel_agent_token_path: "{{ beszel_agent_config_dir }}/universal-token"
+beszel_agent_hub_public_key_path: "{{ beszel_agent_config_dir }}/hub-public-key"
+beszel_agent_image_ref: >-
+  docker.io/henrygd/beszel-agent-intel@sha256:5cbec9f94a4cfce307e3e6703725876f3644f33d6211f955d9de0bf0cd147679
+beszel_agent_expected_image_id: sha256:5cbec9f94a4cfce307e3e6703725876f3644f33d6211f955d9de0bf0cd147679
+beszel_agent_hub_url: https://monitor.winetree94.com
+beszel_agent_system_name: ubuntu-gpu

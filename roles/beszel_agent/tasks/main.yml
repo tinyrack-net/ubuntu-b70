@@ -1,0 +1,128 @@
+---
+- name: Require Beszel Hub credentials
+  ansible.builtin.assert:
+    that:
+      - beszel_agent_universal_token is defined
+      - beszel_agent_universal_token | default('') | trim | length > 0
+      - beszel_agent_hub_public_key is defined
+      - (beszel_agent_hub_public_key | default('') | trim) is match('^ssh-ed25519 [A-Za-z0-9+/]+={0,3}( .*)?$')
+    fail_msg: >-
+      Set vault_beszel_universal_token in the encrypted Ansible Vault and configure beszel_agent_hub_public_key.
+- name: Validate the static Beszel Compose project
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - beszel-agent
+      - --file
+      - "{{ role_path }}/files/compose.yml"
+      - config
+      - --quiet
+  changed_when: false
+  check_mode: false
+  delegate_to: localhost
+  become: false
+
+- name: Create Beszel Agent directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ beszel_agent_install_dir }}", mode: "0755"}
+    - {path: "{{ beszel_agent_config_dir }}", mode: "0700"}
+    - {path: "{{ beszel_agent_data_dir }}", mode: "0755"}
+  become: true
+
+- name: Install the static Beszel Compose file
+  ansible.builtin.copy:
+    src: compose.yml
+    dest: "{{ beszel_agent_install_dir }}/compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Install the Beszel Universal Token
+  ansible.builtin.copy:
+    content: "{{ beszel_agent_universal_token | trim }}\n"
+    dest: "{{ beszel_agent_token_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart beszel-agent
+  become: true
+  no_log: true
+
+- name: Install the Beszel Hub public key
+  ansible.builtin.copy:
+    content: "{{ beszel_agent_hub_public_key | trim }}\n"
+    dest: "{{ beszel_agent_hub_public_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart beszel-agent
+  become: true
+  no_log: true
+
+- name: Pull the pinned Beszel Agent image
+  ansible.builtin.command:
+    argv: [docker, image, pull, "{{ beszel_agent_image_ref }}"]
+  register: beszel_agent_image_pull
+  changed_when: "'Downloaded newer image' in beszel_agent_image_pull.stdout"
+  become: true
+  when: not ansible_check_mode
+
+- name: Inspect the pinned Beszel Agent image
+  ansible.builtin.command:
+    argv: [docker, image, inspect, "--format={{ '{{' }}.Id{{ '}}' }}", "{{ beszel_agent_image_ref }}"]
+  register: beszel_agent_image
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: true
+
+- name: Verify the pinned Beszel Agent image ID
+  ansible.builtin.assert:
+    that:
+      - beszel_agent_image.rc == 0
+      - beszel_agent_image.stdout == beszel_agent_expected_image_id
+    fail_msg: The Beszel Agent image is missing or does not match the pinned image ID.
+  when: not ansible_check_mode
+
+- name: Deploy the Beszel Agent
+  community.docker.docker_compose_v2:
+    project_src: "{{ beszel_agent_install_dir }}"
+    state: present
+    remove_orphans: true
+  become: true
+  when: not ansible_check_mode
+
+- name: Apply changed Beszel credentials before verification
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for the Beszel Agent to connect to the Hub
+  ansible.builtin.command:
+    argv: [docker, inspect, "--format={{ '{{' }}.State.Health.Status{{ '}}' }}", beszel-agent]
+  register: beszel_agent_health
+  changed_when: false
+  retries: 18
+  delay: 5
+  until: beszel_agent_health.stdout == 'healthy'
+  become: true
+  when: not ansible_check_mode
+
+- name: Confirm the Beszel Agent WebSocket connection
+  ansible.builtin.command:
+    argv: [docker, logs, --since, 5m, beszel-agent]
+  register: beszel_agent_logs
+  changed_when: false
+  retries: 18
+  delay: 5
+  until: "'WebSocket connected' in beszel_agent_logs.stdout or 'WebSocket connected' in beszel_agent_logs.stderr"
+  become: true
+  no_log: true
+  when: not ansible_check_mode

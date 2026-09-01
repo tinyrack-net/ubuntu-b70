@@ -1,0 +1,29 @@
+---
+services:
+  beszel-agent:
+    image: docker.io/henrygd/beszel-agent-intel@sha256:5cbec9f94a4cfce307e3e6703725876f3644f33d6211f955d9de0bf0cd147679
+    platform: linux/amd64
+    container_name: beszel-agent
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      DISABLE_SSH: "true"
+      GPU_COLLECTOR: nvtop
+      HUB_URL: https://monitor.winetree94.com
+      KEY_FILE: /run/secrets/beszel_hub_public_key
+      SYSTEM_NAME: ubuntu-gpu
+      TOKEN_FILE: /run/secrets/beszel_universal_token
+    volumes:
+      - /etc/beszel-agent/hub-public-key:/run/secrets/beszel_hub_public_key:ro
+      - /etc/beszel-agent/universal-token:/run/secrets/beszel_universal_token:ro
+      - /var/lib/beszel-agent:/var/lib/beszel-agent
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: [CMD, /agent, health]
+      interval: 120s
+      timeout: 10s
+      retries: 2
+      start_period: 30s

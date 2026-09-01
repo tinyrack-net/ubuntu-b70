@@ -18,6 +18,8 @@
       tags: docker
     - role: intel_gpu
       tags: intel_gpu
+    - role: beszel_agent
+      tags: beszel_agent
     - role: llm_runtime
       tags: llm_runtime
     - role: llama_server

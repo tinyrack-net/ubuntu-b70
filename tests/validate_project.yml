@@ -26,6 +26,9 @@
         makefile: "{{ lookup('file', root ~ '/Makefile') }}"
         intel_defaults: "{{ lookup('file', root ~ '/roles/intel_gpu/defaults/main.yml') }}"
         intel_tasks: "{{ lookup('file', root ~ '/roles/intel_gpu/tasks/main.yml') }}"
+        beszel_defaults: "{{ lookup('file', root ~ '/roles/beszel_agent/defaults/main.yml') }}"
+        beszel_tasks: "{{ lookup('file', root ~ '/roles/beszel_agent/tasks/main.yml') }}"
+        beszel_compose: "{{ lookup('file', root ~ '/roles/beszel_agent/files/compose.yml') | from_yaml }}"
         canary: "{{ lookup('file', root ~ '/roles/vllm_server/files/vllm_content_canary.sh') }}"
         hurl_playbook: "{{ lookup('file', root ~ '/playbooks/test_api.yml') }}"
         benchmark_playbook: "{{ lookup('file', root ~ '/playbooks/benchmark.yml') }}"
@@ -55,6 +58,12 @@
           - "'ansible_password:' not in inventory"
           - "'vault_ubuntu_gpu_become_password' in inventory"
           - "'vault_llm_api_key' in common_vars"
+          - "'vault_beszel_universal_token' in common_vars"
+          - "'vault_beszel_hub_public_key' not in common_vars"
+          - >-
+            common_vars is search(
+              'beszel_agent_hub_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOdy7SA6TPsyioGbKyD69c45t8dYt5YrH0DdJcI/0wwm"'
+            )
 
     - name: Assert engine role separation and selection
       ansible.builtin.assert:
@@ -67,6 +76,7 @@
           - "'role: vllm_server' in setup_playbook"
           - "\"when: llm_runtime_engine == 'vllm'\" in setup_playbook"
           - "'role: llm_runtime' in setup_playbook"
+          - "'role: beszel_agent' in setup_playbook"
           - "'vllm_' not in (llama_defaults ~ llama_compose | lower)"
           - "'llama_model_' not in (vllm_defaults ~ vllm_tasks | lower)"
           - "'llama_backend' not in (vllm_defaults ~ vllm_tasks | lower)"
@@ -153,7 +163,33 @@
         - "{{ root }}/profiles/qwen-3.8-27b/compose.yml"
         - "{{ root }}/profiles/gemma-4-31b/compose.yml"
         - "{{ root }}/profiles/gemma-4-12b/compose.yml"
+        - "{{ root }}/roles/beszel_agent/files/compose.yml"
       changed_when: false
+
+    - name: Assert pinned and secret-safe Beszel Agent configuration
+      ansible.builtin.assert:
+        that:
+          - >-
+            beszel_compose.services['beszel-agent'].image ==
+            'docker.io/henrygd/beszel-agent-intel@sha256:5cbec9f94a4cfce307e3e6703725876f3644f33d6211f955d9de0bf0cd147679'
+          - beszel_compose.services['beszel-agent'].platform == 'linux/amd64'
+          - beszel_compose.services['beszel-agent'].network_mode == 'host'
+          - beszel_compose.services['beszel-agent'].pid == 'host'
+          - "'/dev/dri:/dev/dri' in beszel_compose.services['beszel-agent'].devices"
+          - "'/var/run/docker.sock:/var/run/docker.sock:ro' in beszel_compose.services['beszel-agent'].volumes"
+          - beszel_compose.services['beszel-agent'].environment.DISABLE_SSH == 'true'
+          - beszel_compose.services['beszel-agent'].environment.GPU_COLLECTOR == 'nvtop'
+          - beszel_compose.services['beszel-agent'].environment.HUB_URL == 'https://monitor.winetree94.com'
+          - beszel_compose.services['beszel-agent'].environment.SYSTEM_NAME == 'ubuntu-gpu'
+          - beszel_compose.services['beszel-agent'].environment.TOKEN_FILE == '/run/secrets/beszel_universal_token'
+          - beszel_compose.services['beszel-agent'].environment.KEY_FILE == '/run/secrets/beszel_hub_public_key'
+          - "'TOKEN:' not in (beszel_compose | to_nice_yaml)"
+          - "'KEY:' not in (beszel_compose | to_nice_yaml)"
+          - "'vault_' not in (beszel_compose | to_nice_yaml)"
+          - "'sha256:5cbec9f94a4cfce307e3e6703725876f3644f33d6211f955d9de0bf0cd147679' in beszel_defaults"
+          - "'no_log: true' in beszel_tasks"
+          - "'WebSocket connected' in beszel_tasks"
+          - "'DISABLE_SSH' in (beszel_compose | to_nice_yaml)"
 
     - name: Assert profile deployment and canary safeguards
       ansible.builtin.assert:

@@ -2,3 +2,5 @@
 ansible_private_key: "{{ vault_ssh_private_key }}"
 llm_api_key: "{{ vault_llm_api_key }}"
 llm_runtime_bind_address: 10.132.247.37
+beszel_agent_universal_token: "{{ vault_beszel_universal_token }}"
+beszel_agent_hub_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOdy7SA6TPsyioGbKyD69c45t8dYt5YrH0DdJcI/0wwm"
