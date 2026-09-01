@@ -28,9 +28,20 @@
   "estimated_max_model_len": 103168,
   "error": "To serve at least one request with the model's max seq len (118784), 8.36 GiB KV cache is needed, which is larger than the available KV cache memory (7.38 GiB).",
   "benchmark_started": false,
+  "host_incident": {
+    "reboot_required": true,
+    "previous_boot_last_kernel_event": "dockerd invoked oom-killer",
+    "preceding_event": "VLLM::Worker page allocation failure in xe_ttm_tt_populate",
+    "panic_trace_persisted": false
+  },
   "restoration": {
     "attempted": true,
-    "completed": false,
-    "reason": "The host became unreachable over SSH before the llm-scaler profile could be reapplied."
+    "completed": true,
+    "required_host_reboot": true,
+    "restored_profile": "qwen-3.8-27b",
+    "restored_image": "intel/llm-scaler-vllm:0.21.0-b3.1@sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b",
+    "restart_count": 0,
+    "api_requests_passed": 6,
+    "content_canary_active": true
   }
 }

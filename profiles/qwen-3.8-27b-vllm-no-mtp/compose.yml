@@ -4,7 +4,7 @@ services:
     image: vllm/vllm-openai-xpu:v0.28.0-x86_64@sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8
     pull_policy: never
     container_name: vllm-server
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "10.132.247.37:8080:8080"
     devices:
