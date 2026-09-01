@@ -334,7 +334,12 @@
               - -lc
               - >-
                 vllm --version;
-                python -c 'import torch; print(torch.__version__)'
+                python -c 'import importlib.metadata as m, torch;
+                print("torch=" + torch.__version__);
+                print("vllm-xpu-kernels=" +
+                (m.version("vllm-xpu-kernels") if
+                any(d.metadata.get("Name", "").lower() == "vllm-xpu-kernels"
+                for d in m.distributions()) else "absent"))'
           register: benchmark_runtime_versions
           changed_when: false
           become: true
@@ -408,6 +413,41 @@
             label: >-
               {{ benchmark_run.case.id }}-c{{ benchmark_run.concurrency
               }}-r{{ benchmark_run.round }}
+
+        - name: Capture post-benchmark vLLM metrics
+          ansible.builtin.command:
+            argv:
+              - docker
+              - exec
+              - "{{ benchmark_container_name }}"
+              - bash
+              - -lc
+              - curl -fsS http://127.0.0.1:8080/metrics
+          register: benchmark_runtime_metrics
+          changed_when: false
+          failed_when: false
+          become: true
+
+        - name: Capture objective startup and cache log lines
+          ansible.builtin.shell:
+            cmd: >-
+              set -o pipefail;
+              docker logs {{ benchmark_container_name | quote }} 2>&1 |
+              grep -E
+              -e 'vLLM API server version'
+              -e 'Initializing a V1 LLM engine'
+              -e 'init engine'
+              -e 'GPU KV cache size'
+              -e 'Maximum concurrency'
+              -e 'Available KV cache memory'
+              -e 'XPU Graph'
+              -e 'Resolved architecture' |
+              tail -200
+            executable: /bin/bash
+          register: benchmark_runtime_log_summary
+          changed_when: false
+          failed_when: false
+          become: true
 
         - name: Generate objective benchmark aggregates with jq
           ansible.builtin.command:
@@ -556,6 +596,8 @@
             gpu_pci: "{{ benchmark_gpu_pci.stdout_lines | default([]) }}"
           runtime:
             versions: "{{ benchmark_runtime_versions.stdout_lines | default([]) }}"
+            startup_and_cache_log: "{{ benchmark_runtime_log_summary.stdout_lines | default([]) }}"
+            metrics: "{{ benchmark_runtime_metrics.stdout_lines | default([]) }}"
             production_compose_sha256: "{{ benchmark_compose_stat.stat.checksum | default(null) }}"
             container: "{{ benchmark_container_manifest }}"
             model:

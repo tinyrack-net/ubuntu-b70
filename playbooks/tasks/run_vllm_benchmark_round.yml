@@ -152,6 +152,11 @@
         (.failed == 0) and
         (.errors | length == ($prompts | tonumber)) and
         (.errors | all(. == null or . == "")) and
+        (.generated_texts | length == ($prompts | tonumber)) and
+        (.generated_texts | all(
+          type == "string" and length > 0 and
+          (test("!{8}|\\.{16}|…{8}") | not)
+        )) and
         (.output_lens | length == ($prompts | tonumber)) and
         (.output_lens | all(. == ($output | tonumber))) and
         ([.request_throughput, .output_throughput, .total_token_throughput,

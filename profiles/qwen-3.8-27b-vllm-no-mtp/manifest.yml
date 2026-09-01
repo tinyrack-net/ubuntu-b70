@@ -1,0 +1,18 @@
+---
+slug: qwen-3.8-27b-vllm-no-mtp
+served_model_name: Qwen3.8-27B
+image:
+  ref: vllm/vllm-openai-xpu:v0.28.0-x86_64@sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8
+  expected_id: sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8
+  pull: true
+model:
+  repo: RedHatAI/Qwen3.8-27B-INT4
+  revision: 2fb0debc365fb6c1683d7d3ad7722470919627a8
+  files:
+    - name: model.safetensors
+      sha256: f078f51aed0c1dba613c1759487004ee06aba1a290606b6be125f59ab710959e
+    - name: model_mtp.safetensors
+      sha256: 1d8268aa85ace093a561e3e7b63b9d390dac1cd55a90cd55b5ec509c3c9da9fe
+tokenizer:
+  repo: Qwen/Qwen3.8-27B
+  revision: 1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0

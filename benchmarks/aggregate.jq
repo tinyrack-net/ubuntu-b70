@@ -45,7 +45,21 @@ group_by([.case_id, (.max_concurrency | tonumber)])
             {};
             .[$metric] = ([$group[] | .[$metric]] | stats)
           )
-        )
+        ),
+        derived: {
+          post_first_decode_tps: (
+            [$group[] | .median_tpot_ms | select(type == "number" and . > 0) | 1000 / .]
+            | if length > 0 then stats else null end
+          ),
+          spec_decode_acceptance_rate: (
+            [$group[] | .spec_decode_acceptance_rate | select(type == "number")]
+            | if length > 0 then stats else null end
+          ),
+          spec_decode_acceptance_length: (
+            [$group[] | .spec_decode_acceptance_length | select(type == "number")]
+            | if length > 0 then stats else null end
+          )
+        }
       }
   ) as $cases
 | {

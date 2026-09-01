@@ -19,6 +19,18 @@
         vllm_cleanup_cache: "{{ lookup('file', root ~ '/roles/vllm_server/tasks/cleanup_cache.yml') }}"
         qwen_profile: "{{ lookup('file', root ~ '/profiles/qwen-3.8-27b/manifest.yml') | from_yaml }}"
         qwen_compose: "{{ lookup('file', root ~ '/profiles/qwen-3.8-27b/compose.yml') }}"
+        qwen_scaler_no_mtp_profile: >-
+          {{ lookup('file', root ~ '/profiles/qwen-3.8-27b-scaler-no-mtp/manifest.yml') | from_yaml }}
+        qwen_scaler_no_mtp_compose: >-
+          {{ lookup('file', root ~ '/profiles/qwen-3.8-27b-scaler-no-mtp/compose.yml') }}
+        qwen_vllm_profile: >-
+          {{ lookup('file', root ~ '/profiles/qwen-3.8-27b-vllm/manifest.yml') | from_yaml }}
+        qwen_vllm_compose: >-
+          {{ lookup('file', root ~ '/profiles/qwen-3.8-27b-vllm/compose.yml') }}
+        qwen_vllm_no_mtp_profile: >-
+          {{ lookup('file', root ~ '/profiles/qwen-3.8-27b-vllm-no-mtp/manifest.yml') | from_yaml }}
+        qwen_vllm_no_mtp_compose: >-
+          {{ lookup('file', root ~ '/profiles/qwen-3.8-27b-vllm-no-mtp/compose.yml') }}
         gemma_profile: "{{ lookup('file', root ~ '/profiles/gemma-4-31b/manifest.yml') | from_yaml }}"
         gemma_compose: "{{ lookup('file', root ~ '/profiles/gemma-4-31b/compose.yml') }}"
         gemma12_profile: "{{ lookup('file', root ~ '/profiles/gemma-4-12b/manifest.yml') | from_yaml }}"
@@ -126,6 +138,17 @@
           - "'num_speculative_tokens\":3' in qwen_compose"
           - "'B70_DRAFT_LMHEAD_INT4' not in qwen_compose"
           - "'B70_DRAFT_MTP_INT4' not in qwen_compose"
+          - qwen_scaler_no_mtp_profile.image.expected_id == qwen_profile.image.expected_id
+          - "'--speculative-config' not in qwen_scaler_no_mtp_compose"
+          - qwen_vllm_profile.image.expected_id == 'sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8'
+          - qwen_vllm_profile.image.pull | bool
+          - "'\"method\":\"mtp\"' in qwen_vllm_compose"
+          - "'num_speculative_tokens\":3' in qwen_vllm_compose"
+          - qwen_vllm_no_mtp_profile.image.expected_id == qwen_vllm_profile.image.expected_id
+          - "'--speculative-config' not in qwen_vllm_no_mtp_compose"
+          - qwen_scaler_no_mtp_profile.model.revision == qwen_profile.model.revision
+          - qwen_vllm_profile.model.revision == qwen_profile.model.revision
+          - qwen_vllm_no_mtp_profile.model.revision == qwen_profile.model.revision
           - gemma_profile.slug == 'gemma-4-31b'
           - gemma_profile.served_model_name == 'gemma-4-31B-it'
           - gemma_profile.image.expected_id == 'sha256:7343a52a92d943d5eb3199e6e5e9b74c4d76568556739a4b07b163963feb0297'
@@ -169,6 +192,9 @@
         argv: [docker, compose, --project-name, vllm-server, --file, "{{ item }}", config, --quiet]
       loop:
         - "{{ root }}/profiles/qwen-3.8-27b/compose.yml"
+        - "{{ root }}/profiles/qwen-3.8-27b-scaler-no-mtp/compose.yml"
+        - "{{ root }}/profiles/qwen-3.8-27b-vllm/compose.yml"
+        - "{{ root }}/profiles/qwen-3.8-27b-vllm-no-mtp/compose.yml"
         - "{{ root }}/profiles/gemma-4-31b/compose.yml"
         - "{{ root }}/profiles/gemma-4-12b/compose.yml"
         - "{{ root }}/roles/beszel_agent/files/compose.yml"
@@ -337,9 +363,9 @@
           - "{{ root }}/benchmarks/aggregate.jq"
       args:
         stdin: |-
-          {"case_id":"fixture","input_len":"128","output_len":"256","max_concurrency":1,"round":"1","result_file":"r1.json","completed":5,"failed":0,"output_throughput":100}
-          {"case_id":"fixture","input_len":"128","output_len":"256","max_concurrency":1,"round":"2","result_file":"r2.json","completed":5,"failed":0,"output_throughput":101}
-          {"case_id":"fixture","input_len":"128","output_len":"256","max_concurrency":1,"round":"3","result_file":"r3.json","completed":5,"failed":0,"output_throughput":99}
+          {"case_id":"fixture","input_len":"128","output_len":"256","max_concurrency":1,"round":"1","result_file":"r1.json","completed":5,"failed":0,"output_throughput":100,"median_tpot_ms":20}
+          {"case_id":"fixture","input_len":"128","output_len":"256","max_concurrency":1,"round":"2","result_file":"r2.json","completed":5,"failed":0,"output_throughput":101,"median_tpot_ms":20}
+          {"case_id":"fixture","input_len":"128","output_len":"256","max_concurrency":1,"round":"3","result_file":"r3.json","completed":5,"failed":0,"output_throughput":99,"median_tpot_ms":20}
       register: benchmark_aggregate_fixture
       changed_when: false
 
@@ -349,3 +375,4 @@
           - (benchmark_aggregate_fixture.stdout | from_json).passed | bool
           - (benchmark_aggregate_fixture.stdout | from_json).cases[0].metrics.output_throughput.mean == 100
           - (benchmark_aggregate_fixture.stdout | from_json).cases[0].metrics.output_throughput.median == 100
+          - (benchmark_aggregate_fixture.stdout | from_json).cases[0].derived.post_first_decode_tps.median == 50

@@ -1,0 +1,46 @@
+---
+services:
+  vllm-server:
+    image: vllm/vllm-openai-xpu:v0.28.0-x86_64@sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8
+    pull_policy: never
+    container_name: vllm-server
+    restart: unless-stopped
+    ports:
+      - "10.132.247.37:8080:8080"
+    devices:
+      - "/dev/dri:/dev/dri"
+    ipc: host
+    privileged: true
+    environment:
+      ONEAPI_DEVICE_SELECTOR: level_zero:0,1
+      VLLM_XPU_ENABLE_XPU_GRAPH: "0"
+      VLLM_WORKER_MULTIPROC_METHOD: spawn
+    volumes:
+      - "/etc/vllm-server/api-key:/run/secrets/llm_api_key:ro"
+      - "/var/lib/vllm-server/huggingface:/root/.cache/huggingface"
+      - "/dev/dri/by-path:/dev/dri/by-path:ro"
+    entrypoint: [/bin/bash, -lc]
+    command:
+      - >-
+        export VLLM_API_KEY="$$(cat /run/secrets/llm_api_key)";
+        exec vllm serve "RedHatAI/Qwen3.8-27B-INT4"
+        --revision "2fb0debc365fb6c1683d7d3ad7722470919627a8"
+        --tokenizer "Qwen/Qwen3.8-27B"
+        --tokenizer-revision "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
+        --served-model-name "Qwen3.8-27B"
+        --host 0.0.0.0 --port 8080
+        --dtype float16
+        --quantization compressed-tensors
+        --max-model-len 118784
+        --max-num-seqs 4
+        --max-num-batched-tokens 2048
+        --data-parallel-size 2
+        --data-parallel-backend mp
+        --gpu-memory-utilization 0.92
+        --no-enable-prefix-caching
+        --speculative-config '{"method":"mtp","num_speculative_tokens":3}'
+        --language-model-only
+        --enable-auto-tool-choice
+        --tool-call-parser qwen3_xml
+        --reasoning-parser qwen3
+        --generation-config vllm
