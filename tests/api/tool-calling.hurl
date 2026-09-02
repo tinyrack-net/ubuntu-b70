@@ -20,7 +20,7 @@ Content-Type: application/json
       }
     }
   ],
-  "tool_choice": "required",
+  "tool_choice": "auto",
   "chat_template_kwargs": {"enable_thinking": false},
   "temperature": 0,
   "max_tokens": 128

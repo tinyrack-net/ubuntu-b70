@@ -2,9 +2,9 @@
 slug: qwen-3.8-27b
 served_model_name: Qwen3.8-27B
 image:
-  ref: intel/llm-scaler-vllm:0.21.0-b3.1@sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b
-  expected_id: sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b
-  pull: false
+  ref: intel/llm-scaler-vllm:0.26.0-b1@sha256:70e7eafdd52c281263f2a19266086b88e55064402a17ef731ba5657c4bd86490
+  expected_id: sha256:70e7eafdd52c281263f2a19266086b88e55064402a17ef731ba5657c4bd86490
+  pull: true
 model:
   repo: RedHatAI/Qwen3.8-27B-INT4
   revision: 2fb0debc365fb6c1683d7d3ad7722470919627a8

@@ -41,6 +41,6 @@ services:
         --speculative-config '{"method":"mtp","num_speculative_tokens":3}'
         --language-model-only
         --enable-auto-tool-choice
-        --tool-call-parser qwen3_xml
+        --tool-call-parser qwen3_coder
         --reasoning-parser qwen3
         --generation-config vllm

@@ -309,7 +309,7 @@
         that:
           - "'PROFILE_OK' in (vllm_server_generation.json.choices[0].message.content | default(''))"
 
-    - name: Verify a required tool call
+    - name: Verify an automatic tool call
       ansible.builtin.uri:
         url: "http://{{ llm_runtime_bind_address }}:{{ llm_runtime_port }}/v1/chat/completions"
         method: POST
@@ -331,7 +331,7 @@
                   properties:
                     city: {type: string}
                   required: [city]
-          tool_choice: required
+          tool_choice: auto
           chat_template_kwargs:
             enable_thinking: false
           temperature: 0
@@ -341,10 +341,14 @@
       register: vllm_server_tool_call
       no_log: true
 
-    - name: Assert the required tool call name
+    - name: Assert the automatic tool call name
       ansible.builtin.assert:
         that:
-          - vllm_server_tool_call.json.choices[0].message.tool_calls[0].function.name == 'lookup_weather'
+          - >-
+            vllm_server_tool_call.json.choices[0].message.tool_calls
+            | default([]) | map(attribute='function.name') | list
+            == ['lookup_weather']
+        fail_msg: The model did not return the expected automatic lookup_weather tool call.
 
     - name: Record the active profile
       ansible.builtin.copy:

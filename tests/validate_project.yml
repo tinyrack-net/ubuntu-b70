@@ -119,10 +119,10 @@
         that:
           - qwen_profile.slug == 'qwen-3.8-27b'
           - qwen_profile.served_model_name == 'Qwen3.8-27B'
-          - qwen_profile.image.expected_id == 'sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b'
+          - qwen_profile.image.expected_id == 'sha256:70e7eafdd52c281263f2a19266086b88e55064402a17ef731ba5657c4bd86490'
           - qwen_profile.model.revision == '2fb0debc365fb6c1683d7d3ad7722470919627a8'
           - qwen_profile.model.files | length == 2
-          - "'--max-model-len 118784' in qwen_compose"
+          - "'--max-model-len 110592' in qwen_compose"
           - "'ONEAPI_DEVICE_SELECTOR: level_zero:0,1' in qwen_compose"
           - "'VLLM_XPU_ENABLE_XPU_GRAPH: \"0\"' in qwen_compose"
           - "'--max-num-seqs 4' in qwen_compose"
@@ -135,17 +135,24 @@
           - "'--limit-mm-per-prompt' not in qwen_compose"
           - "'--mm-processor-cache-type' not in qwen_compose"
           - "'--language-model-only' in qwen_compose"
+          - "'--tool-call-parser qwen3_coder' in qwen_compose"
+          - "'--tool-call-parser qwen3_xml' not in qwen_compose"
           - "'num_speculative_tokens\":3' in qwen_compose"
           - "'B70_DRAFT_LMHEAD_INT4' not in qwen_compose"
           - "'B70_DRAFT_MTP_INT4' not in qwen_compose"
-          - qwen_scaler_no_mtp_profile.image.expected_id == qwen_profile.image.expected_id
+          - qwen_scaler_no_mtp_profile.image.expected_id == 'sha256:032916bd9264da44cab3e99092ffaf12331072ec51c3b380cbbe5fd98eb0254b'
           - "'--speculative-config' not in qwen_scaler_no_mtp_compose"
+          - "'--tool-call-parser qwen3_coder' in qwen_scaler_no_mtp_compose"
           - qwen_vllm_profile.image.expected_id == 'sha256:d3e9c5f146a8251c7489107e6353cf512fcd1bf14a16cab17148125a62a537c8'
           - qwen_vllm_profile.image.pull | bool
           - "'\"method\":\"mtp\"' in qwen_vllm_compose"
           - "'num_speculative_tokens\":3' in qwen_vllm_compose"
+          - "'--tool-call-parser qwen3_coder' in qwen_vllm_compose"
           - qwen_vllm_no_mtp_profile.image.expected_id == qwen_vllm_profile.image.expected_id
           - "'--speculative-config' not in qwen_vllm_no_mtp_compose"
+          - "'--tool-call-parser qwen3_coder' in qwen_vllm_no_mtp_compose"
+          - "'tool_choice: auto' in vllm_tasks"
+          - "'tool_choice: required' not in vllm_tasks"
           - qwen_scaler_no_mtp_profile.model.revision == qwen_profile.model.revision
           - qwen_vllm_profile.model.revision == qwen_profile.model.revision
           - qwen_vllm_no_mtp_profile.model.revision == qwen_profile.model.revision

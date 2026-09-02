@@ -41,8 +41,8 @@ API 주소는 `http://10.132.247.37:8080/v1`이다. Bearer token은 Vault의
 
 ## 운영 설정
 
-- `qwen-3.8-27b`: Intel llm-scaler b3.1과 RedHat INT4 체크포인트 기반,
-  context 118784, DP2, rank당 max sequences 4(전체 C8), batch 2048, MTP3,
+- `qwen-3.8-27b`: Intel llm-scaler 0.26.0-b1과 RedHat INT4 체크포인트 기반,
+  context 110592, DP2, rank당 max sequences 4(전체 C8), batch 2048, MTP3,
   XPU Graph OFF, auto KV, text-only. 별도 `model_mtp.safetensors`를 사용해 두 rank의
   동시 기동 메모리 피크를 제한하며, 32GiB 보조 swap과 swappiness 10을 유지한다.
 - `gemma-4-31b`: Intel llm-scaler b3.1 기반에 upstream Gemma 4 MTP embedding 수정만
